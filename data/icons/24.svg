@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+<!-- SPDX-License-Identifier: BlueOak-1.0.0 -->
+<!-- SPDX-FileCopyrightText: 2026 melvincouwez-alt -->
+<!-- Cassette, drawn for 24px -->
+<defs>
+<linearGradient id="shell" x1="0" y1="3" x2="0" y2="22" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#6b6b6b"/><stop offset="1" stop-color="#2e2e2e"/></linearGradient>
+<linearGradient id="lbl" x1="0" y1="5" x2="0" y2="16" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ff8fab"/><stop offset="1" stop-color="#c42a55"/></linearGradient>
+</defs>
+<rect x="1.5" y="3.5" width="21" height="18" rx="2" fill="url(#shell)" stroke="#141414"/>
+<rect x="3" y="5" width="18" height="11" rx="1" fill="url(#lbl)"/>
+<rect x="5" y="8" width="14" height="6" rx="3" fill="#1a1a1a"/>
+<rect x="6" y="9" width="4" height="4" rx="2" fill="#f2f2f2"/>
+<rect x="14" y="9" width="4" height="4" rx="2" fill="#f2f2f2"/>
+<path d="M6 21.5 7 18h10l1 3.5z" fill="#4d4d4d"/>
+</svg>

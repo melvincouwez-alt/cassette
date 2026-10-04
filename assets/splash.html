@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self'">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loading</title>
+<link rel="stylesheet" href="windowChrome.css">
+<style>
+.icon {
+  margin-bottom: 24px;
+}
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(218, 165, 32, 0.2);
+  border-top-color: #daa520;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 16px;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.loading-text {
+  color: rgba(218, 165, 32, 0.7);
+  font-size: 13px;
+  letter-spacing: 0.5px;
+}
+</style>
+</head>
+<body>
+<img class="icon" src="cassette-logo.png" alt="" width="128" height="128">
+<div class="spinner"></div>
+<span class="loading-text">Loading...</span>
+<script>
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var text = params.get('text') || 'Loading...';
+  var lang = params.get('lang') || 'en';
+  document.documentElement.lang = lang;
+  document.title = text;
+  document.querySelector('.loading-text').textContent = text;
+  document.documentElement.dir = /^(ar|he)(-|$)/i.test(lang) ? 'rtl' : 'ltr';
+})();
+</script>
+</body>
+</html>

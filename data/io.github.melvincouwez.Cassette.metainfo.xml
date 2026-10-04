@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: CC0-1.0 -->
+<component type="desktop-application">
+  <id>io.github.melvincouwez.Cassette</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>BlueOak-1.0.0</project_license>
+  <name>Cassette</name>
+  <summary>Apple Music, the elementary way</summary>
+  <summary xml:lang="fr">Apple Music, à la façon d’elementary</summary>
+  <developer id="io.github.melvincouwez">
+    <name>melvincouwez-alt</name>
+  </developer>
+  <description>
+    <p>Cassette plays Apple Music in an elementary OS window: header bar, light and dark styles, media keys and the sound indicator (MPRIS), track notifications and optional Last.fm scrobbling. An Apple Music subscription is required.</p>
+    <p xml:lang="fr">Cassette lit Apple Music dans une fenêtre elementary OS : barre d’en-tête, styles clair et sombre, touches multimédia et indicateur de son (MPRIS), notifications de piste et scrobbling Last.fm facultatif. Un abonnement Apple Music est nécessaire.</p>
+    <p>Cassette is a fork of Sidra by Martin Wimpress. Apple Music is a trademark of Apple Inc.; Cassette is not affiliated with or endorsed by Apple.</p>
+    <p xml:lang="fr">Cassette est un fork de Sidra de Martin Wimpress. Apple Music est une marque d’Apple Inc. ; Cassette n’est ni affiliée à Apple ni approuvée par Apple.</p>
+  </description>
+  <launchable type="desktop-id">io.github.melvincouwez.Cassette.desktop</launchable>
+  <url type="homepage">https://github.com/melvincouwez-alt/cassette</url>
+  <url type="bugtracker">https://github.com/melvincouwez-alt/cassette/issues</url>
+  <url type="vcs-browser">https://github.com/melvincouwez-alt/cassette</url>
+  <categories>
+    <category>AudioVideo</category>
+    <category>Audio</category>
+    <category>Player</category>
+  </categories>
+  <provides>
+    <binary>cassette</binary>
+    <dbus type="user">org.mpris.MediaPlayer2.cassette</dbus>
+  </provides>
+  <requires>
+    <internet>always</internet>
+  </requires>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.1" date="2026-10-04">
+      <description>
+        <p>Own repository and releases, AppStream data, fuller credits and licence notices, links in the About window.</p>
+      </description>
+    </release>
+    <release version="0.1.0" date="2026-09-30">
+      <description>
+        <p>First release: Sidra 1.1.2 reworked for elementary OS.</p>
+      </description>
+    </release>
+  </releases>
+</component>

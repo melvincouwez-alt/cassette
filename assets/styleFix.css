@@ -1,0 +1,22 @@
+/* Hide the "Open in Music" button and container, but keep the shared wrapper. */
+[data-testid="native-cta"],
+[data-testid="native-cta-button"],
+[class*="native-upsell"] {
+  display: none !important;
+}
+
+/* Keep the account menu visible inside the shared "Open in Music" wrapper. */
+#navigation > div.navigation__native-cta {
+  display: block !important;
+}
+#navigation > div.navigation__native-cta > div:not([data-testid="native-cta"]) {
+  display: block !important;
+}
+[data-testid="auth-content"],
+[data-testid="account-menu"] {
+  display: block !important;
+}
+
+[class*="upsell-banner"] {
+  display: none !important;
+}

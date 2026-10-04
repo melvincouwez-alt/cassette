@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+<!-- SPDX-License-Identifier: BlueOak-1.0.0 -->
+<!-- SPDX-FileCopyrightText: 2026 melvincouwez-alt -->
+<!-- Cassette, drawn for 16px -->
+<rect x="0.5" y="2.5" width="15" height="12" rx="1.5" fill="#3d3d3d" stroke="#141414"/>
+<rect x="2" y="4" width="12" height="7" fill="#e03a64"/>
+<rect x="3" y="6" width="10" height="4" rx="2" fill="#1a1a1a"/>
+<rect x="4" y="7" width="2" height="2" fill="#f2f2f2"/>
+<rect x="10" y="7" width="2" height="2" fill="#f2f2f2"/>
+<rect x="4" y="12" width="8" height="2" fill="#5a5a5a"/>
+</svg>

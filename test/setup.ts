@@ -1,0 +1,142 @@
+// Loaded by Vitest before every test file, so a stand-in registered here is
+// shared by the whole suite.
+import { vi } from "vitest";
+
+// Electron modules are unavailable outside the Electron runtime.
+// Each test file can override specific behaviour through vi.mocked().
+vi.mock("electron", () => ({
+  app: {
+    getName: () => "Sidra",
+    getVersion: () => "0.3.0",
+    getPath: (name: string) => `/tmp/sidra-test/${name}`,
+    getPreferredSystemLanguages: () => ["en-GB", "en"],
+    getLocaleCountryCode: () => "GB",
+    isPackaged: false,
+    whenReady: () => new Promise(() => {}), // Never resolves, which prevents application bootstrap.
+    on: vi.fn(),
+    emit: vi.fn(),
+    quit: vi.fn(),
+    setAppUserModelId: vi.fn(),
+    commandLine: { appendSwitch: vi.fn() },
+    setDesktopName: vi.fn(),
+    userAgentFallback: "",
+  },
+  BrowserWindow: vi.fn(),
+  ipcMain: { on: vi.fn(), handle: vi.fn() },
+  session: {
+    defaultSession: { setUserAgent: vi.fn() },
+    fromPartition: vi.fn(() => ({
+      setUserAgent: vi.fn(),
+      clearData: vi.fn(() => Promise.resolve()),
+      webRequest: { onBeforeSendHeaders: vi.fn() },
+    })),
+  },
+  components: {
+    whenReady: () => Promise.resolve(),
+    status: () => ({}),
+  },
+  // Returns a promise, as the real shell.openExternal does: callers attach a
+  // .catch() to it, so a bare vi.fn() throws inside them.
+  shell: { openExternal: vi.fn(() => Promise.resolve()) },
+  nativeTheme: {
+    shouldUseDarkColors: true,
+    shouldUseDarkColorsForSystemIntegratedUI: false,
+    on: vi.fn(),
+  },
+  nativeImage: {
+    createFromPath: vi.fn(() => {
+      const image = {
+        isEmpty: () => false,
+        resize: vi.fn(() => image),
+        toPNG: vi.fn(() => Buffer.from([])),
+        addRepresentation: vi.fn(),
+      };
+      return image;
+    }),
+    createFromNamedImage: vi.fn(() => {
+      const image = {
+        isEmpty: () => false,
+        resize: vi.fn(() => image),
+        toPNG: vi.fn(() => Buffer.from([])),
+      };
+      return image;
+    }),
+    createEmpty: vi.fn(() => ({
+      isEmpty: () => true,
+      addRepresentation: vi.fn(),
+    })),
+  },
+  Menu: {
+    buildFromTemplate: vi.fn((template: unknown[]) => ({ items: template })),
+    setApplicationMenu: vi.fn(),
+  },
+  Tray: class MockTray {
+    constructor(readonly icon: string | Electron.NativeImage) {}
+    setContextMenu = vi.fn();
+    setToolTip = vi.fn();
+    setImage = vi.fn();
+    on = vi.fn();
+  },
+  Notification: Object.assign(vi.fn(), { removeGroup: vi.fn() }),
+  dialog: { showMessageBox: vi.fn() },
+  net: { fetch: vi.fn() },
+  contextBridge: { exposeInMainWorld: vi.fn() },
+  ipcRenderer: { send: vi.fn() },
+}));
+
+vi.mock("electron-log/main", () => {
+  const noop = vi.fn();
+  const scopedLogger = {
+    info: noop,
+    warn: noop,
+    error: noop,
+    debug: noop,
+    silly: noop,
+  };
+  return {
+    default: {
+      initialize: noop,
+      transports: {
+        file: { level: "info", format: "" },
+        console: { level: "debug", format: "" },
+      },
+      scope: () => scopedLogger,
+      info: noop,
+      warn: noop,
+      error: noop,
+      debug: noop,
+    },
+  };
+});
+
+// macOS tray tests default to pre-Tahoe and can override this value through vi.spyOn().
+if (!process.getSystemVersion) {
+  (process as unknown as Record<string, unknown>).getSystemVersion = vi.fn(
+    () => "15.0.0",
+  );
+} else {
+  vi.spyOn(process, "getSystemVersion").mockReturnValue("15.0.0");
+}
+
+vi.mock("electron-conf/main", () => {
+  const data = new Map<string, unknown>();
+  return {
+    Conf: class {
+      has(key: string) {
+        return data.has(key);
+      }
+      get(key: string) {
+        return data.get(key);
+      }
+      set(key: string, value: unknown) {
+        data.set(key, value);
+      }
+      clear() {
+        data.clear();
+      }
+      // One map backs every Conf instance, exposed so test/config.test.ts can
+      // seed and clear what the getters read.
+      static _data = data;
+    },
+  };
+});

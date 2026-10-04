@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self'">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>About</title>
+<link rel="stylesheet" href="windowChrome.css">
+<style>
+/* Cassette: elementary's About dialog look, light and dark. */
+:root { color-scheme: light dark; --fg: #333; --dim: #666; --faint: #7e8087; --btn: rgba(0,0,0,.05); --btn-hover: rgba(0,0,0,.09); --edge: rgba(0,0,0,.15); --accent: #3689e6; }
+@media (prefers-color-scheme: dark) { :root { --fg: #fff; --dim: #cecece; --faint: #abacae; --btn: rgba(255,255,255,.08); --btn-hover: rgba(255,255,255,.14); --edge: rgba(0,0,0,.5); --accent: #64baff; } }
+html, body { background: #fafafa; }
+@media (prefers-color-scheme: dark) { html, body { background: #333; } }
+body {
+  color: var(--fg);
+  font-family: "Inter Variable", "Inter", system-ui, sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.icon { margin-bottom: 16px; }
+.name { font-size: 22px; font-weight: 700; margin-bottom: 2px; }
+.version { font-size: 12px; color: var(--accent); margin-bottom: 14px; }
+.description { font-size: 13px; color: var(--dim); text-align: center; max-width: 320px; line-height: 1.5; margin-bottom: 18px; }
+.copyright, .license, .credits { font-size: 11px; color: var(--faint); margin-bottom: 4px; text-align: center; max-width: 340px; }
+.links { font-size: 12px; margin-top: 6px; }
+.links a { color: var(--accent); text-decoration: none; margin: 0 6px; cursor: pointer; }
+.links a:hover { text-decoration: underline; }
+.close-btn {
+  margin-top: 18px;
+  padding: 6px 22px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--fg);
+  background: var(--btn);
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  box-shadow: 0 1px 1px rgba(0,0,0,.06);
+  cursor: default;
+}
+.close-btn:hover { background: var(--btn-hover); }
+.close-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<img class="icon" id="icon" src="cassette-logo.png" alt="Cassette">
+<div class="name" id="name">Cassette</div>
+<div class="version" id="version"></div>
+<div class="description" id="description"></div>
+<div class="copyright" id="copyright"></div>
+<div class="credits" id="credits"></div>
+<div class="license" id="license"></div>
+<div class="links">
+  <a id="link-site" href="https://github.com/melvincouwez-alt/cassette" target="_blank"></a>
+  <a id="link-sidra" href="https://github.com/wimpysworld/sidra" target="_blank">Sidra</a>
+  <a id="link-license" href="https://blueoakcouncil.org/license/1.0.0" target="_blank"></a>
+</div>
+<button class="close-btn" id="close-btn"></button>
+<script>
+  var params = new URLSearchParams(window.location.search);
+  var lang = params.get('lang') || 'en';
+  document.documentElement.lang = lang;
+  document.documentElement.dir = /^(ar|he)(-|$)/i.test(lang) ? 'rtl' : 'ltr';
+  var name = params.get('name') || 'Cassette';
+  var version = params.get('version') || '';
+  var description = params.get('description') || '';
+  var author = params.get('author') || '';
+  var license = params.get('license') || '';
+  var aboutText = params.get('about') || 'About ' + name;
+  var closeText = params.get('close') || 'Close';
+  var versionPrefix = params.get('versionPrefix') || 'Version';
+  var copyrightSuffix = params.get('copyrightSuffix') || '';
+  var licensePrefix = params.get('licensePrefix') || 'Licensed under';
+  var year = params.get('year') || String(new Date().getFullYear());
+
+  document.title = aboutText;
+
+  document.getElementById('name').textContent = name;
+  document.getElementById('icon').alt = name;
+  document.getElementById('version').textContent = versionPrefix + ' ' + version;
+  document.getElementById('description').textContent = description;
+  // Sidra's copyright stays beside Cassette's, as the Blue Oak licence keeps both.
+  document.getElementById('copyright').textContent = '\u00A9 Martin Wimpress (Sidra), 2026 ' + author + '. ' + copyrightSuffix;
+  document.getElementById('license').textContent = licensePrefix + ' ' + license;
+  var fr = /^fr(-|$)/i.test(lang);
+  document.getElementById('credits').textContent = fr
+    ? 'Construit sur CastLabs Electron, Electron et Chromium. Widevine est un module de Google, téléchargé au premier lancement.'
+    : 'Built on CastLabs Electron, Electron and Chromium. Widevine is a Google module, downloaded on first launch.';
+  document.getElementById('link-site').textContent = fr ? 'Site web' : 'Website';
+  document.getElementById('link-license').textContent = fr ? 'Licence' : 'Licence';
+  document.getElementById('close-btn').textContent = closeText;
+  document.querySelector('.close-btn').addEventListener('click', function() { window.close(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,172 @@
+/* Cassette header bar: elementary's HeaderBar with a brand colour, as elementary
+   apps may carry one: Cassette's raspberry, white glyphs and title. The window
+   buttons are the frame's own and float over the padding set from main. */
+:root {
+  --brand-top: #e03a64;
+  --brand-bottom: #c42a55;
+  --brand-edge: rgba(125, 10, 44, 0.9);
+  --on-brand: #ffffff;
+  --page: #fafafa;
+  --hover: rgba(255, 255, 255, 0.16);
+  --press: rgba(0, 0, 0, 0.14);
+  --spinner-track: rgba(0, 0, 0, 0.08);
+  --spinner: #c42a55;
+  --inset-start: 0px;
+  --inset-end: 0px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --brand-top: #b01e47;
+    --brand-bottom: #971a3e;
+    --brand-edge: rgba(0, 0, 0, 0.6);
+    --page: #333333;
+    --spinner-track: rgba(255, 255, 255, 0.1);
+    --spinner: #ff8fab;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; background: transparent; }
+body {
+  font: 400 12px/1.2 "Inter Variable", "Inter", system-ui, sans-serif;
+  font-feature-settings: "ss03", "cv11";
+  color: var(--on-brand);
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+#headerbar {
+  position: relative;
+  z-index: 1;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 calc(var(--inset-end) + 6px) 0 calc(var(--inset-start) + 6px);
+  background: linear-gradient(var(--brand-top), var(--brand-bottom));
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.22), inset 0 -1px 0 0 var(--brand-edge);
+  -webkit-app-region: drag;
+}
+.side { flex: 1 0 auto; display: flex; align-items: center; gap: 6px; }
+#end { justify-content: flex-end; }
+.group { display: flex; gap: 2px; }
+#center { flex: 0 1 460px; min-width: 120px; display: flex; justify-content: center; }
+#title {
+  flex: 0 1 auto;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px rgba(0, 0, 0, 0.25);
+}
+button {
+  -webkit-app-region: no-drag;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.92;
+  transition: background-color 120ms ease, opacity 120ms ease;
+}
+button:hover { background: var(--hover); opacity: 1; }
+button:active { background: var(--press); }
+button:disabled { opacity: 0.3; background: transparent; }
+button svg { width: 16px; height: 16px; fill: currentColor; }
+button:focus-visible { outline: 2px solid var(--on-brand); outline-offset: -2px; }
+
+/* Transport: play/pause is the one filled, round button, as in elementary Music. */
+.transport .play { width: 34px; height: 34px; border-radius: 50%; background: rgba(255, 255, 255, 0.2); opacity: 1; }
+.transport .play:hover { background: rgba(255, 255, 255, 0.3); }
+.transport .play svg { width: 18px; height: 18px; }
+button.active { background: rgba(255, 255, 255, 0.22); opacity: 1; }
+button[data-badge] { position: relative; }
+button[data-badge]::after {
+  content: attr(data-badge); position: absolute; inset-block-end: 5px; inset-inline-end: 6px;
+  font-size: 8px; font-weight: 800; line-height: 1;
+}
+button svg.stroke { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Now playing: artwork, one line of title and artist, then the scrubber. */
+#nowplaying { display: flex; align-items: center; gap: 10px; min-width: 0; width: 100%; }
+#nowplaying[hidden] { display: none; }
+#art { width: 32px; height: 32px; border-radius: 4px; flex: none; object-fit: cover;
+  background: rgba(0, 0, 0, 0.18); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.25); }
+.meta { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; text-shadow: 0 1px rgba(0, 0, 0, 0.2); }
+#track-title { font-weight: 700; }
+#track-artist { opacity: 0.8; }
+#track-artist:not(:empty)::before { content: " — "; }
+.progress { display: flex; align-items: center; gap: 8px; -webkit-app-region: no-drag; }
+.time { font-size: 10px; opacity: 0.85; font-variant-numeric: tabular-nums; min-width: 30px; }
+#remaining { text-align: end; }
+#scrubber { flex: 1; height: 14px; display: flex; align-items: center; cursor: pointer; outline: none; }
+#scrubber { background: linear-gradient(rgba(255,255,255,.3), rgba(255,255,255,.3)) center / 100% 4px no-repeat; border-radius: 2px; }
+#fill { height: 4px; width: 0; border-radius: 2px; background: #fff; transition: width 0.5s linear; }
+#scrubber.no-seek { cursor: default; }
+#scrubber:focus-visible { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6); border-radius: 4px; }
+
+/* Volume: the speaker mutes and restores, the slider is Cassette's own level. */
+.volume { display: flex; align-items: center; gap: 2px; -webkit-app-region: no-drag; }
+button svg .wave { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
+#volume {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 84px;
+  height: 14px;
+  margin: 0 6px 0 2px;
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+  --level: 100%;
+}
+#volume::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, #fff var(--level), rgba(255, 255, 255, 0.3) var(--level));
+}
+#volume::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+#volume:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6); }
+
+/* Narrow windows keep the essentials. */
+@media (max-width: 980px) { .extra #shuffle, .extra #repeat, .extra #lyrics { display: none; } }
+@media (max-width: 760px) { .time { display: none; } #art { display: none; } #volume { display: none; } }
+@media (max-width: 600px) { .transport #previous, .transport #next { display: none; } }
+
+/* Start-up: the page area stays on the window colour, with elementary's
+   spinner, until Apple's page has drawn; then it fades out. */
+#cover {
+  position: absolute;
+  inset: 48px 0 0 0;
+  display: grid;
+  place-items: center;
+  background: var(--page);
+  transition: opacity 220ms ease-out;
+}
+body:not(.loading) #cover { opacity: 0; pointer-events: none; }
+.spinner {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2.5px solid var(--spinner-track);
+  border-top-color: var(--spinner);
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation-duration: 3s; }
+  #cover, button { transition: none; }
+}

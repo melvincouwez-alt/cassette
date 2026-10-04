@@ -1,0 +1,1649 @@
+import {
+  describe,
+  it,
+  expect,
+  expectTypeOf,
+  vi,
+  beforeEach,
+  afterEach,
+} from "vitest";
+import type { TrayStrings } from "../src/i18n";
+
+// Mock modules that import electron-conf/main at import time.
+vi.mock("../src/config", () => ({
+  getNotificationsEnabled: () => true,
+  setNotificationsEnabled: vi.fn(),
+  getLastfmEnabled: vi.fn(() => false),
+  setLastfmEnabled: vi.fn(),
+  getLastfmSessionKey: vi.fn(() => null),
+  getLastfmUsername: vi.fn(() => null),
+  setLastfmSession: vi.fn(),
+  clearLastfmSession: vi.fn(),
+  getStartPage: () => "new",
+  setStartPage: vi.fn(),
+  getZoomFactor: () => 1.0,
+  setZoomFactor: vi.fn(),
+  getCloseToTrayEnabled: vi.fn(() => false),
+  setCloseToTrayEnabled: vi.fn(),
+  getMusicService: vi.fn(() => "music"),
+  setMusicService: vi.fn(),
+  getClassicalStartPage: vi.fn(() => "home"),
+  getStartPageFor: vi.fn((id: string) =>
+    id === "classical" ? getClassicalStartPage() : "new",
+  ),
+  setClassicalStartPage: vi.fn(),
+}));
+
+const mockTrayStrings: TrayStrings = {
+  settings: "Settings",
+  integrations: "Integrations",
+  settingsError: "Could not apply this setting.",
+  lastfm: "Last.fm",
+  lastfmConnected: "Connected",
+  about: "About Sidra",
+  quit: "Quit",
+  notifications: "Notifications",
+  player: "Player",
+  lastfmConnect: "Connect to Last.fm…",
+  lastfmDisconnect: "Disconnect",
+  startPage: "Start Page",
+  startPageHome: "Home",
+  startPageNew: "New",
+  startPageRadio: "Radio",
+  startPageAllPlaylists: "All Playlists",
+  startPageBrowse: "Browse",
+  startPageLibrary: "Library",
+  startPagePlaylists: "Playlists",
+  startPageSearch: "Search",
+  startPageLast: "Last",
+  on: "On",
+  off: "Off",
+  style: "Style",
+  zoom: "Zoom",
+  zoom100: "100%",
+  zoom125: "125%",
+  zoom150: "150%",
+  zoom175: "175%",
+  zoom200: "200%",
+  previous: "Previous",
+  play: "Play",
+  pause: "Pause",
+  notPlaying: "Not Playing",
+  next: "Next",
+  volume: "Volume",
+  mute: "Mute",
+  share: "Share",
+  hideWindow: "Hide Sidra",
+  showWindow: "Show Sidra",
+  closeToTray: "Close to tray",
+};
+
+// Expected menu label per registry page id. Typed over the union, so a new page
+// with no expectation here fails tsc rather than going untested.
+const TEST_START_PAGE_LABELS: Record<AnyStartPageId, string> = {
+  home: mockTrayStrings.startPageHome,
+  new: mockTrayStrings.startPageNew,
+  radio: mockTrayStrings.startPageRadio,
+  "all-playlists": mockTrayStrings.startPageAllPlaylists,
+  browse: mockTrayStrings.startPageBrowse,
+  playlists: mockTrayStrings.startPagePlaylists,
+  search: mockTrayStrings.startPageSearch,
+};
+
+vi.mock("../src/i18n", () => ({
+  getTrayStrings: () => mockTrayStrings,
+  getLoadingText: () => ({ lang: "en", text: "Loading..." }),
+  getAboutStrings: () => ({
+    close: "Close",
+    versionPrefix: "Version",
+    copyrightSuffix: "All rights reserved",
+    licensePrefix: "License",
+  }),
+}));
+
+vi.mock("../src/integrations/lastfm", () => ({
+  enable: vi.fn(),
+  disable: vi.fn(),
+  startAuth: vi.fn(),
+  setStateChangedCallback: vi.fn(),
+  disconnect: vi.fn(),
+  isConfigured: vi.fn(() => false),
+}));
+
+vi.mock("../src/artwork", () => ({
+  downloadArtwork: vi.fn(() => Promise.resolve("/tmp/downloaded-artwork.png")),
+}));
+
+vi.mock("../src/paths", () => ({
+  getAssetPath: vi.fn((...parts: string[]) => parts.join("/")),
+  getProductInfo: () => ({
+    productName: "Sidra",
+    description: "Apple Music client",
+    author: "Test",
+    license: "MIT",
+  }),
+}));
+
+import { BrowserWindow, Menu, Tray, nativeImage, nativeTheme } from "electron";
+import {
+  truncateMenuLabel,
+  sanitiseLinuxLabel,
+  cancelTrayRebuild,
+  createTray,
+  getMenuIcon,
+  updateNowPlayingState,
+  initTrayStateManager,
+  setGetMainWindowCallback as setTrayMainWindowCallback,
+  type MenuIconKey,
+} from "../src/tray";
+import {
+  getCloseToTrayEnabled,
+  getMusicService,
+  setMusicService,
+  getClassicalStartPage,
+  getLastfmEnabled,
+  setLastfmEnabled,
+  getLastfmSessionKey,
+  getLastfmUsername,
+} from "../src/config";
+import { downloadArtwork } from "../src/artwork";
+import { PlaybackState } from "../src/player";
+import type { NowPlayingPayload, PlayerEvents } from "../src/player";
+import {
+  startAuth as startLastfmAuth,
+  disconnect as disconnectLastfm,
+  isConfigured as isLastfmConfigured,
+} from "../src/integrations/lastfm";
+import { FakePlayer } from "./mocks/player";
+import { setPlatform, restorePlatform } from "./mocks/platform";
+import {
+  MUSIC_SERVICES,
+  type AnyStartPageId,
+  type ClassicalStartPageId,
+  type MusicServiceId,
+} from "../src/musicService";
+
+import { initSettingsActions, subscribeSettingsChanges } from "../src/settings";
+
+let getSettingsMainWindow: () => BrowserWindow | null = () => null;
+let switchSettingsService: (id: MusicServiceId) => void = () => {};
+function setGetMainWindowCallback(callback: () => BrowserWindow | null): void {
+  getSettingsMainWindow = callback;
+  setTrayMainWindowCallback(callback);
+}
+function setSwitchServiceCallback(
+  callback: (id: MusicServiceId) => void,
+): void {
+  switchSettingsService = callback;
+}
+
+afterEach(restorePlatform);
+afterEach(() => vi.unstubAllEnvs());
+
+/**
+ * Resets menu state and recorded nativeImage calls so tests do not depend on execution order.
+ * vitest.config.mts enables neither clearMocks nor mockReset, so this fixture must reset them explicitly.
+ */
+function resetTrayMocks(): void {
+  initSettingsActions({
+    getMainWindow: () => getSettingsMainWindow(),
+    applyZoom: () => {},
+    switchService: (id) => switchSettingsService(id),
+    refreshTray: () => {},
+  });
+  vi.stubEnv("XDG_CURRENT_DESKTOP", undefined);
+  vi.mocked(getMusicService).mockReturnValue("music");
+  vi.mocked(getClassicalStartPage).mockReturnValue("home");
+  vi.mocked(getCloseToTrayEnabled).mockReturnValue(false);
+  vi.mocked(getLastfmEnabled).mockReturnValue(false);
+  vi.mocked(getLastfmSessionKey).mockReturnValue(null);
+  vi.mocked(getLastfmUsername).mockReturnValue(null);
+  vi.mocked(isLastfmConfigured).mockReturnValue(false);
+  vi.mocked(nativeImage.createFromPath).mockClear();
+  cancelTrayRebuild();
+  setGetMainWindowCallback(() => null);
+  setSwitchServiceCallback(() => {});
+  updateNowPlayingState({
+    payload: null,
+    artworkPath: null,
+    isPlaying: false,
+    volume: 0,
+  });
+}
+
+beforeEach(resetTrayMocks);
+
+// The last build is the one that reached the tray: several tests rebuild the
+// menu more than once and assert against the state the final rebuild saw.
+function getLastTemplate(): Electron.MenuItemConstructorOptions[] {
+  const calls = vi.mocked(Menu.buildFromTemplate).mock.calls;
+  expect(calls.length).toBeGreaterThan(0);
+  return calls[calls.length - 1][0] as Electron.MenuItemConstructorOptions[];
+}
+
+// Matching is on a substring because every submenu parent carries its current
+// value in the label, as in 'Start Page: New'.
+function findItem(
+  template: Electron.MenuItemConstructorOptions[],
+  labelSubstring: string,
+): Electron.MenuItemConstructorOptions | undefined {
+  return template.find(
+    (item) =>
+      typeof item.label === "string" && item.label.includes(labelSubstring),
+  );
+}
+
+describe("truncateMenuLabel", () => {
+  it("passes through short text without truncation", () => {
+    expect(truncateMenuLabel("Short Title", 32)).toBe("Short Title");
+  });
+
+  it("truncates long text with ellipsis", () => {
+    expect(
+      truncateMenuLabel(
+        "Long Title That Exceeds The Maximum Length Allowed",
+        32,
+      ),
+    ).toBe("Long Title That Exceeds The Maxi…");
+  });
+
+  it("splits on ( and trims trailing space", () => {
+    expect(truncateMenuLabel("Track Name (feat. Artist)", 32)).toBe(
+      "Track Name",
+    );
+  });
+
+  it("splits on [ and trims trailing space", () => {
+    expect(truncateMenuLabel("Track Name [Deluxe Edition]", 32)).toBe(
+      "Track Name",
+    );
+  });
+
+  it("handles empty string without crashing", () => {
+    expect(truncateMenuLabel("", 32)).toBe("");
+  });
+
+  it("keeps label when ( is at index 0", () => {
+    expect(truncateMenuLabel("(Intro)", 32)).toBe("(Intro)");
+  });
+});
+
+describe("sanitiseLinuxLabel", () => {
+  it("replaces & with fullwidth ampersand", () => {
+    expect(sanitiseLinuxLabel("Paul McCartney & Wings")).toBe(
+      "Paul McCartney \uFF06 Wings",
+    );
+  });
+
+  it("replaces multiple ampersands", () => {
+    expect(sanitiseLinuxLabel("A & B & C")).toBe("A \uFF06 B \uFF06 C");
+  });
+
+  it("leaves text without ampersands unchanged", () => {
+    expect(sanitiseLinuxLabel("No ampersands here")).toBe("No ampersands here");
+  });
+
+  it("handles empty string", () => {
+    expect(sanitiseLinuxLabel("")).toBe("");
+  });
+});
+
+describe("createTray - menu template inspection", () => {
+  it.each(["linux"] as const)(
+    "omits the Settings launcher on %s",
+    (platform) => {
+      setPlatform(platform);
+      createTray();
+      expect(
+        findItem(getLastTemplate(), mockTrayStrings.settings),
+      ).toBeUndefined();
+    },
+  );
+
+  it("publishes a tray preference action to Settings subscribers", () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribeSettingsChanges(listener);
+    try {
+      createTray();
+      const item = findItem(getLastTemplate(), "Notifications");
+      const choices = item?.submenu as Electron.MenuItemConstructorOptions[];
+      choices[1].click?.(
+        {} as Electron.MenuItem,
+        {} as BrowserWindow,
+        {} as Electron.KeyboardEvent,
+      );
+      expect(listener).toHaveBeenCalledOnce();
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  afterEach(() => {
+    vi.mocked(Menu.buildFromTemplate).mockClear();
+  });
+
+  it("calls Menu.buildFromTemplate and captures the template", () => {
+    setPlatform("linux");
+    createTray();
+    const template = getLastTemplate();
+    expect(Array.isArray(template)).toBe(true);
+    expect(template.length).toBeGreaterThan(0);
+  });
+
+  it("returns a Tray instance with setContextMenu called", () => {
+    setPlatform("linux");
+    const tray = createTray();
+    expect(tray).toBeDefined();
+    expect(tray.setContextMenu).toBeDefined();
+  });
+
+  describe("Linux platform", () => {
+    beforeEach(() => {
+      setPlatform("linux");
+      Object.defineProperty(nativeTheme, "shouldUseDarkColors", {
+        value: true,
+        configurable: true,
+      });
+    });
+
+    it.each([
+      ["GNOME", false],
+      ["GNOME", true],
+      ["ubuntu:GNOME", false],
+      ["gnome", true],
+    ] as const)(
+      "uses the outlined tray icon on %s when shouldUseDarkColors is %s",
+      (desktop, dark) => {
+        vi.stubEnv("XDG_CURRENT_DESKTOP", desktop);
+        Object.defineProperty(nativeTheme, "shouldUseDarkColors", {
+          value: dark,
+          configurable: true,
+        });
+        const tray = createTray() as Tray & { icon: string };
+
+        expect(tray.icon).toBe("assets/icons/sidra-tray-outline.png");
+      },
+    );
+
+    it.each([
+      ["KDE", false],
+      ["KDE", true],
+      [undefined, false],
+      [undefined, true],
+      ["", false],
+      ["not-GNOME", true],
+    ] as const)(
+      "uses the themed tray icon on %s when shouldUseDarkColors is %s",
+      (desktop, dark) => {
+        vi.stubEnv("XDG_CURRENT_DESKTOP", desktop);
+        Object.defineProperty(nativeTheme, "shouldUseDarkColors", {
+          value: dark,
+          configurable: true,
+        });
+        const tray = createTray() as Tray & { icon: string };
+
+        expect(tray.icon).toBe(
+          `assets/icons/sidra-tray-${dark ? "dark" : "light"}.png`,
+        );
+      },
+    );
+
+    it("uses plain text label for About on Linux", () => {
+      createTray();
+      const template = getLastTemplate();
+      const aboutItem = findItem(template, "About Sidra");
+      expect(aboutItem).toBeDefined();
+      expect(aboutItem!.label).toBe("About Sidra");
+    });
+
+    it("attaches icon to About on Linux", () => {
+      createTray();
+      const template = getLastTemplate();
+      const aboutItem = findItem(template, "About Sidra");
+      expect(aboutItem!.icon).toBeDefined();
+    });
+
+    it("uses plain text label for Quit on Linux", () => {
+      createTray();
+      const template = getLastTemplate();
+      const quitItem = findItem(template, "Quit");
+      expect(quitItem).toBeDefined();
+      expect(quitItem!.label).toBe("Quit");
+    });
+
+    it("attaches icon to Quit on Linux", () => {
+      createTray();
+      const template = getLastTemplate();
+      const quitItem = findItem(template, "Quit");
+      expect(quitItem!.icon).toBeDefined();
+    });
+
+    it("attaches icons to all top-level submenu parents on Linux", () => {
+      createTray();
+      const template = getLastTemplate();
+      for (const labelSubstring of [
+        "Player",
+        "Start Page",
+        "Notifications",
+        "Zoom",
+      ]) {
+        const item = findItem(template, labelSubstring);
+        expect(item, `${labelSubstring} should exist`).toBeDefined();
+        expect(item!.icon, `${labelSubstring} should have icon`).toBeDefined();
+        expect(
+          item!.submenu,
+          `${labelSubstring} should have submenu`,
+        ).toBeDefined();
+      }
+    });
+
+    it("uses plain text labels for submenu parents on Linux", () => {
+      createTray();
+      const template = getLastTemplate();
+      const startPageItem = findItem(template, "Start Page");
+      expect(startPageItem!.label).toBe("Start Page: New");
+    });
+
+    it("does not attach icons to submenu radio items", () => {
+      createTray();
+      const template = getLastTemplate();
+      const startPageItem = findItem(template, "Start Page");
+      const submenu = startPageItem!
+        .submenu as Electron.MenuItemConstructorOptions[];
+      for (const child of submenu) {
+        expect(child.icon).toBeUndefined();
+      }
+    });
+
+    it("registers a nativeTheme listener on Linux", () => {
+      createTray();
+      expect(vi.mocked(nativeTheme.on)).toHaveBeenCalledWith(
+        "updated",
+        expect.any(Function),
+      );
+    });
+  });
+
+  describe("menu structure", () => {
+    it("includes separator before Quit", () => {
+      setPlatform("linux");
+      createTray();
+      const template = getLastTemplate();
+      const lastItem = template[template.length - 1];
+      const secondLast = template[template.length - 2];
+      expect(lastItem.label).toContain("Quit");
+      expect(secondLast.type).toBe("separator");
+    });
+
+    it("includes all submenu sections", () => {
+      setPlatform("linux");
+      createTray();
+      const template = getLastTemplate();
+      expect(findItem(template, "About Sidra")).toBeDefined();
+      expect(findItem(template, "Start Page")).toBeDefined();
+      expect(findItem(template, "Notifications")).toBeDefined();
+      expect(findItem(template, "Zoom")).toBeDefined();
+      expect(findItem(template, "Quit")).toBeDefined();
+    });
+
+    // With now-playing state cleared, Volume is gone and every remaining item
+    // with a submenu is a top-level settings parent. Comparing the text before
+    // the first ':' keeps the assertion independent of the toggle states.
+    it("asserts the full top-level submenu order", () => {
+      setPlatform("linux");
+      updateNowPlayingState({
+        payload: null,
+        artworkPath: null,
+        isPlaying: false,
+        volume: 0,
+      });
+      vi.mocked(isLastfmConfigured).mockReturnValue(true);
+      createTray();
+      const parents = getLastTemplate()
+        .filter((item) => item.submenu !== undefined)
+        .map((item) => String(item.label).split(":")[0]);
+      expect(parents).toEqual([
+        "Player",
+        "Start Page",
+        "Close to tray",
+        "Notifications",
+        "Last.fm",
+        "Zoom",
+      ]);
+    });
+  });
+
+  describe("Player submenu", () => {
+    beforeEach(() => {
+      setPlatform("linux");
+    });
+
+    it("Player submenu parent is present in the template", () => {
+      createTray();
+      const template = getLastTemplate();
+      const playerItem = findItem(template, "Player");
+      expect(playerItem).toBeDefined();
+    });
+
+    it("Player submenu parent label shows active service", () => {
+      createTray();
+      const template = getLastTemplate();
+      const playerItem = findItem(template, "Player");
+      expect(playerItem!.label).toBe("Player: Apple Music");
+    });
+
+    it("Player submenu parent carries the headphones icon", () => {
+      Object.defineProperty(nativeTheme, "shouldUseDarkColors", {
+        value: true,
+        configurable: true,
+      });
+      vi.mocked(nativeImage.createFromPath).mockClear();
+      createTray();
+      const playerItem = findItem(getLastTemplate(), "Player");
+      expect(playerItem!.icon).toBeDefined();
+      const paths = vi
+        .mocked(nativeImage.createFromPath)
+        .mock.calls.map((call) => String(call[0]));
+      expect(paths.some((p) => p.endsWith("/dark/headphones.png"))).toBe(true);
+    });
+
+    it("Apple Music radio item is checked when music service is active", () => {
+      createTray();
+      const template = getLastTemplate();
+      const playerItem = findItem(template, "Player");
+      const submenu = playerItem!
+        .submenu as Electron.MenuItemConstructorOptions[];
+      const musicItem = submenu.find((item) => item.label === "Apple Music");
+      expect(musicItem).toBeDefined();
+      expect(musicItem!.checked).toBe(true);
+    });
+
+    it("Apple Music Classical radio item is unchecked when music service is active", () => {
+      createTray();
+      const template = getLastTemplate();
+      const playerItem = findItem(template, "Player");
+      const submenu = playerItem!
+        .submenu as Electron.MenuItemConstructorOptions[];
+      const classicalItem = submenu.find(
+        (item) => item.label === "Apple Music Classical",
+      );
+      expect(classicalItem).toBeDefined();
+      expect(classicalItem!.checked).toBe(false);
+    });
+
+    it("Player submenu parent label shows Classical when classical is active", () => {
+      vi.mocked(getMusicService).mockReturnValue("classical");
+      createTray();
+      const template = getLastTemplate();
+      const playerItem = findItem(template, "Player");
+      expect(playerItem!.label).toBe("Player: Apple Music Classical");
+    });
+
+    it("Apple Music Classical radio item is checked when classical service is active", () => {
+      vi.mocked(getMusicService).mockReturnValue("classical");
+      createTray();
+      const template = getLastTemplate();
+      const playerItem = findItem(template, "Player");
+      const submenu = playerItem!
+        .submenu as Electron.MenuItemConstructorOptions[];
+      const classicalItem = submenu.find(
+        (item) => item.label === "Apple Music Classical",
+      );
+      expect(classicalItem!.checked).toBe(true);
+    });
+  });
+
+  describe("Player submenu service switch", () => {
+    const onSwitch = vi.fn();
+
+    beforeEach(() => {
+      setPlatform("linux");
+      vi.mocked(setMusicService).mockClear();
+      onSwitch.mockClear();
+      setSwitchServiceCallback(onSwitch);
+    });
+
+    function playerSubmenu(): Electron.MenuItemConstructorOptions[] {
+      createTray();
+      const playerItem = findItem(getLastTemplate(), "Player");
+      expect(playerItem).toBeDefined();
+      return playerItem!.submenu as Electron.MenuItemConstructorOptions[];
+    }
+
+    it("hands the clicked service id to the wired callback", () => {
+      const classicalItem = playerSubmenu().find(
+        (item) => item.label === "Apple Music Classical",
+      );
+      expect(classicalItem).toBeDefined();
+      (classicalItem!.click as Function)();
+      expect(onSwitch).toHaveBeenCalledTimes(1);
+      expect(onSwitch).toHaveBeenCalledWith("classical");
+    });
+
+    it("does nothing when the active service is clicked", () => {
+      const musicItem = playerSubmenu().find(
+        (item) => item.label === "Apple Music",
+      );
+      expect(musicItem).toBeDefined();
+      (musicItem!.click as Function)();
+      expect(onSwitch).not.toHaveBeenCalled();
+      expect(vi.mocked(setMusicService)).not.toHaveBeenCalled();
+    });
+
+    it("takes a service id rather than any string", () => {
+      expectTypeOf(setSwitchServiceCallback)
+        .parameter(0)
+        .parameter(0)
+        .toEqualTypeOf<MusicServiceId>();
+      expectTypeOf(setSwitchServiceCallback)
+        .parameter(0)
+        .parameter(0)
+        .not.toEqualTypeOf<string>();
+    });
+  });
+
+  describe("Player submenu with an unregistered service id", () => {
+    // Stands in for a hand-edited config file, or for a downgrade past a future
+    // release that adds a third service id.
+    const UNREGISTERED_SERVICE_ID = "jazz" as string as MusicServiceId;
+
+    beforeEach(() => {
+      setPlatform("linux");
+      vi.mocked(getMusicService).mockReturnValue(UNREGISTERED_SERVICE_ID);
+    });
+
+    it("builds a menu rather than leaving the tray without one", () => {
+      expect(() => createTray()).not.toThrow();
+      expect(vi.mocked(Menu.buildFromTemplate)).toHaveBeenCalled();
+      expect(getLastTemplate().length).toBeGreaterThan(0);
+    });
+
+    it("names the default service in the Player parent label", () => {
+      createTray();
+      const playerItem = findItem(getLastTemplate(), "Player");
+      expect(playerItem!.label).toBe("Player: Apple Music");
+    });
+
+    it("still lists every registered service", () => {
+      createTray();
+      const playerItem = findItem(getLastTemplate(), "Player");
+      const submenu = playerItem!
+        .submenu as Electron.MenuItemConstructorOptions[];
+      expect(submenu.map((item) => item.label)).toEqual([
+        "Apple Music",
+        "Apple Music Classical",
+      ]);
+    });
+  });
+
+  describe("Start Page submenu with classical service", () => {
+    beforeEach(() => {
+      setPlatform("linux");
+      vi.mocked(getMusicService).mockReturnValue("classical");
+    });
+
+    it("Start Page submenu shows classical pages when classical is active", () => {
+      createTray();
+      const template = getLastTemplate();
+      const startPageItem = findItem(template, "Start Page");
+      const submenu = startPageItem!
+        .submenu as Electron.MenuItemConstructorOptions[];
+      const labels = submenu.map((item) => item.label);
+      expect(labels).toEqual(["Home", "Browse", "Playlists", "Search", "Last"]);
+      expect(labels).not.toContain("New");
+      expect(labels).not.toContain("Radio");
+    });
+
+    it("falls back to Home when a stored library page is no longer offered", () => {
+      // Classical has no web library route. A legacy stored id must select Home instead of leaving every item unchecked.
+      vi.mocked(getClassicalStartPage).mockReturnValue(
+        "library" as string as ClassicalStartPageId,
+      );
+      createTray();
+      const template = getLastTemplate();
+      const startPageItem = findItem(template, "Start Page");
+      expect(startPageItem!.label).toBe("Start Page: Home");
+      const submenu = startPageItem!
+        .submenu as Electron.MenuItemConstructorOptions[];
+      const ticked = submenu
+        .filter((item) => item.checked === true)
+        .map((item) => item.label);
+      expect(ticked).toEqual(["Home"]);
+    });
+  });
+
+  describe("Start Page submenu covers the registry", () => {
+    beforeEach(() => {
+      setPlatform("linux");
+    });
+
+    function startPageSubmenu(): Electron.MenuItemConstructorOptions[] {
+      createTray();
+      const startPageItem = findItem(getLastTemplate(), "Start Page");
+      expect(startPageItem).toBeDefined();
+      return startPageItem!.submenu as Electron.MenuItemConstructorOptions[];
+    }
+
+    it("offers a radio entry for every music start page in the registry", () => {
+      vi.mocked(getMusicService).mockReturnValue("music");
+      const submenu = startPageSubmenu();
+      for (const page of MUSIC_SERVICES.music.startPages) {
+        const entry = submenu.find(
+          (item) => item.label === TEST_START_PAGE_LABELS[page.id],
+        );
+        expect(entry, `${page.id} should have a menu entry`).toBeDefined();
+        expect(entry!.type).toBe("radio");
+      }
+    });
+
+    it("offers a radio entry for every classical start page in the registry", () => {
+      vi.mocked(getMusicService).mockReturnValue("classical");
+      const submenu = startPageSubmenu();
+      for (const page of MUSIC_SERVICES.classical.startPages) {
+        const entry = submenu.find(
+          (item) => item.label === TEST_START_PAGE_LABELS[page.id],
+        );
+        expect(entry, `${page.id} should have a menu entry`).toBeDefined();
+        expect(entry!.type).toBe("radio");
+      }
+    });
+  });
+
+  describe("Last.fm submenu", () => {
+    beforeEach(() => {
+      setPlatform("linux");
+      vi.mocked(isLastfmConfigured).mockReturnValue(true);
+      vi.mocked(startLastfmAuth).mockClear();
+      vi.mocked(disconnectLastfm).mockClear();
+      vi.mocked(setLastfmEnabled).mockClear();
+    });
+
+    /** Puts the config mocks in the state left by a completed auth flow. */
+    function linkAccount(username = "martin"): void {
+      vi.mocked(getLastfmSessionKey).mockReturnValue("session-key");
+      vi.mocked(getLastfmUsername).mockReturnValue(username);
+      vi.mocked(getLastfmEnabled).mockReturnValue(true);
+    }
+
+    function lastfmItem(): Electron.MenuItemConstructorOptions {
+      createTray();
+      const item = findItem(getLastTemplate(), "Last.fm");
+      expect(item).toBeDefined();
+      return item!;
+    }
+
+    function lastfmSubmenu(): Electron.MenuItemConstructorOptions[] {
+      return lastfmItem().submenu as Electron.MenuItemConstructorOptions[];
+    }
+
+    it("offers a single connect action when no account is linked", () => {
+      expect(lastfmSubmenu().map((item) => item.label)).toEqual([
+        "Connect to Last.fm…",
+      ]);
+    });
+
+    it("starts the auth flow when connect is clicked", () => {
+      const connectItem = lastfmSubmenu()[0];
+      (connectItem.click as Function)();
+      expect(vi.mocked(setLastfmEnabled)).toHaveBeenCalledWith(true);
+      expect(vi.mocked(startLastfmAuth)).toHaveBeenCalled();
+    });
+
+    it("reports the scrobbling state in the parent label when connected", () => {
+      linkAccount();
+      expect(lastfmItem().label).toBe("Last.fm: On");
+    });
+
+    it("names the linked account in a row of its own", () => {
+      linkAccount("wimpy");
+      const account = findItem(lastfmSubmenu(), "wimpy");
+      expect(account).toBeDefined();
+      expect(account!.label).toBe("✓ wimpy");
+      expect(account!.enabled).toBe(false);
+    });
+
+    it("disconnects the account when the disconnect item is clicked", () => {
+      linkAccount();
+      const disconnectItem = findItem(lastfmSubmenu(), "Disconnect");
+      expect(disconnectItem).toBeDefined();
+      (disconnectItem!.click as Function)();
+      expect(vi.mocked(disconnectLastfm)).toHaveBeenCalled();
+    });
+
+    it("omits the Last.fm item entirely when no credentials are configured", () => {
+      vi.mocked(isLastfmConfigured).mockReturnValue(false);
+      createTray();
+      expect(findItem(getLastTemplate(), "Last.fm")).toBeUndefined();
+    });
+  });
+
+  describe("close-to-tray enabled state", () => {
+    let mockWin: {
+      isVisible: ReturnType<typeof vi.fn>;
+      show: ReturnType<typeof vi.fn>;
+      hide: ReturnType<typeof vi.fn>;
+      focus: ReturnType<typeof vi.fn>;
+    };
+
+    beforeEach(() => {
+      setPlatform("linux");
+      Object.defineProperty(nativeTheme, "shouldUseDarkColors", {
+        value: true,
+        configurable: true,
+      });
+      mockWin = {
+        isVisible: vi.fn(() => true),
+        show: vi.fn(),
+        hide: vi.fn(),
+        focus: vi.fn(),
+      };
+      setGetMainWindowCallback(() => mockWin as unknown as BrowserWindow);
+      vi.mocked(getCloseToTrayEnabled).mockReturnValue(true);
+    });
+
+    it("shows Hide Sidra when window is visible", () => {
+      createTray();
+      const template = getLastTemplate();
+      expect(findItem(template, "Hide Sidra")).toBeDefined();
+      expect(findItem(template, "Show Sidra")).toBeUndefined();
+    });
+
+    it("shows Show Sidra when window is hidden", () => {
+      mockWin.isVisible.mockReturnValue(false);
+      createTray();
+      const template = getLastTemplate();
+      expect(findItem(template, "Show Sidra")).toBeDefined();
+      expect(findItem(template, "Hide Sidra")).toBeUndefined();
+    });
+
+    it("resolves a different icon for the Hide state and the Show state", () => {
+      // Hide and Show are one menu entry built from the window's visibility, so
+      // each state is checked both for the icon it needs and against the icon
+      // the other state needs. A single shared icon key passes the first check
+      // alone.
+      const iconPaths = (visible: boolean): string[] => {
+        mockWin.isVisible.mockReturnValue(visible);
+        vi.mocked(nativeImage.createFromPath).mockClear();
+        createTray();
+        return vi
+          .mocked(nativeImage.createFromPath)
+          .mock.calls.map((call) => String(call[0]));
+      };
+
+      const whenVisible = iconPaths(true);
+      expect(whenVisible.some((p) => p.endsWith("/dark/eye-slash.png"))).toBe(
+        true,
+      );
+      expect(whenVisible.some((p) => p.endsWith("/dark/eye.png"))).toBe(false);
+
+      const whenHidden = iconPaths(false);
+      expect(whenHidden.some((p) => p.endsWith("/dark/eye.png"))).toBe(true);
+      expect(whenHidden.some((p) => p.endsWith("/dark/eye-slash.png"))).toBe(
+        false,
+      );
+    });
+
+    it("shows neither item when close-to-tray is disabled", () => {
+      vi.mocked(getCloseToTrayEnabled).mockReturnValue(false);
+      createTray();
+      const template = getLastTemplate();
+      expect(findItem(template, "Hide Sidra")).toBeUndefined();
+      expect(findItem(template, "Show Sidra")).toBeUndefined();
+    });
+
+    it("shows and focuses the window when disabling close-to-tray while hidden", () => {
+      mockWin.isVisible.mockReturnValue(false);
+      createTray();
+      const template = getLastTemplate();
+      const closeToTrayItem = findItem(template, "Close to tray");
+      const submenu = closeToTrayItem!
+        .submenu as Electron.MenuItemConstructorOptions[];
+      const offItem = submenu.find((item) => item.label === "Off");
+      expect(offItem).toBeDefined();
+      (offItem!.click as Function)();
+      expect(mockWin.show).toHaveBeenCalled();
+      expect(mockWin.focus).toHaveBeenCalled();
+    });
+
+    it("tray click shows and focuses the window when hidden", () => {
+      mockWin.isVisible.mockReturnValue(false);
+      const tray = createTray();
+      const onFn = tray.on as ReturnType<typeof vi.fn>;
+      const clickCall = onFn.mock.calls.find((call) => call[0] === "click");
+      expect(clickCall).toBeDefined();
+      (clickCall![1] as () => void)();
+      expect(mockWin.show).toHaveBeenCalled();
+      expect(mockWin.focus).toHaveBeenCalled();
+    });
+
+    it("tray click rebuilds the menu after showing a hidden window", () => {
+      mockWin.isVisible.mockReturnValue(false);
+      // Showing the window flips visibility, so the rebuilt menu is built against the new state.
+      mockWin.show.mockImplementation(() => {
+        mockWin.isVisible.mockReturnValue(true);
+      });
+      const tray = createTray();
+      const setContextMenu = tray.setContextMenu as ReturnType<typeof vi.fn>;
+      // Delta, never an absolute count: createTray() sets the menu once on its own.
+      const before = setContextMenu.mock.calls.length;
+      const onFn = tray.on as ReturnType<typeof vi.fn>;
+      const clickCall = onFn.mock.calls.find((call) => call[0] === "click");
+      expect(clickCall).toBeDefined();
+      (clickCall![1] as () => void)();
+      expect(setContextMenu.mock.calls.length).toBe(before + 1);
+      // Without the rebuild the menu still offers Show Sidra for a window that is now visible.
+      const template = getLastTemplate();
+      expect(findItem(template, "Hide Sidra")).toBeDefined();
+      expect(findItem(template, "Show Sidra")).toBeUndefined();
+    });
+
+    it("tray click focuses a visible window without rebuilding the menu", () => {
+      const tray = createTray();
+      const setContextMenu = tray.setContextMenu as ReturnType<typeof vi.fn>;
+      const before = setContextMenu.mock.calls.length;
+      const onFn = tray.on as ReturnType<typeof vi.fn>;
+      const clickCall = onFn.mock.calls.find((call) => call[0] === "click");
+      expect(clickCall).toBeDefined();
+      (clickCall![1] as () => void)();
+      expect(mockWin.focus).toHaveBeenCalled();
+      expect(mockWin.show).not.toHaveBeenCalled();
+      expect(setContextMenu.mock.calls.length).toBe(before);
+    });
+
+    it("tray click is a no-op when close-to-tray is disabled", () => {
+      mockWin.isVisible.mockReturnValue(false);
+      vi.mocked(getCloseToTrayEnabled).mockReturnValue(false);
+      const tray = createTray();
+      const onFn = tray.on as ReturnType<typeof vi.fn>;
+      const clickCall = onFn.mock.calls.find((call) => call[0] === "click");
+      expect(clickCall).toBeDefined();
+      (clickCall![1] as () => void)();
+      expect(mockWin.show).not.toHaveBeenCalled();
+      expect(mockWin.focus).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Now Playing menu items", () => {
+    const nowPlayingPayload = {
+      name: "Test Track",
+      artistName: "Test Artist",
+      albumName: "Test Album",
+      artwork: { url: "" },
+    };
+
+    function setupNowPlaying(
+      artworkPath: string | null = "/tmp/artwork.png",
+    ): void {
+      updateNowPlayingState({
+        payload: nowPlayingPayload,
+        artworkPath,
+        isPlaying: true,
+        volume: 0.75,
+      });
+    }
+
+    function createTrayWithNowPlaying(
+      artworkPath: string | null = "/tmp/artwork.png",
+    ): ReturnType<typeof createTray> {
+      setupNowPlaying(artworkPath);
+      const tray = createTray();
+      return tray;
+    }
+
+    it("leaves track details and transport to the MPRIS sound indicator", () => {
+      setPlatform("linux");
+      createTrayWithNowPlaying();
+      const labels = getLastTemplate().map((item) => item.label);
+      for (const label of [
+        "Test Track",
+        "Test Artist",
+        "Test Album",
+        "Previous",
+        "Pause",
+        "Next",
+      ]) {
+        expect(labels).not.toContain(label);
+      }
+      expect(labels.some((label) => label?.endsWith("75%"))).toBe(true);
+    });
+  });
+});
+
+describe("theme change menu refresh", () => {
+  beforeEach(() => {
+    vi.mocked(nativeTheme.on).mockClear();
+    vi.mocked(Menu.buildFromTemplate).mockClear();
+  });
+
+  it("rebuilds context menu on theme change on Linux", () => {
+    setPlatform("linux");
+    Object.defineProperty(nativeTheme, "shouldUseDarkColors", {
+      value: true,
+      configurable: true,
+    });
+    const tray = createTray();
+    const setContextMenuFn = tray.setContextMenu as ReturnType<typeof vi.fn>;
+    const buildCountBefore = vi.mocked(Menu.buildFromTemplate).mock.calls
+      .length;
+    const contextMenuCountBefore = setContextMenuFn.mock.calls.length;
+
+    const themeCall = vi
+      .mocked(nativeTheme.on)
+      .mock.calls.find(([event]) => event === "updated");
+    expect(themeCall).toBeDefined();
+    const callback = themeCall![1] as () => void;
+    callback();
+
+    const buildCountAfter = vi.mocked(Menu.buildFromTemplate).mock.calls.length;
+    expect(buildCountAfter).toBeGreaterThan(buildCountBefore);
+    expect(setContextMenuFn.mock.calls.length).toBeGreaterThan(
+      contextMenuCountBefore,
+    );
+  });
+
+  it.each([false, true])(
+    "keeps the GNOME tray image when shouldUseDarkColors changes to %s",
+    (dark) => {
+      setPlatform("linux");
+      vi.stubEnv("XDG_CURRENT_DESKTOP", "ubuntu:GNOME");
+      Object.defineProperty(nativeTheme, "shouldUseDarkColors", {
+        value: !dark,
+        configurable: true,
+      });
+      const tray = createTray();
+      vi.mocked(nativeImage.createFromPath).mockClear();
+      vi.mocked(tray.setContextMenu).mockClear();
+
+      const themeCall = vi
+        .mocked(nativeTheme.on)
+        .mock.calls.find(([event]) => event === "updated");
+      expect(themeCall).toBeDefined();
+      const callback = themeCall![1] as () => void;
+      Object.defineProperty(nativeTheme, "shouldUseDarkColors", {
+        value: dark,
+        configurable: true,
+      });
+      callback();
+
+      expect(tray.setImage).not.toHaveBeenCalled();
+      expect(tray.setContextMenu).toHaveBeenCalledTimes(1);
+      expect(nativeImage.createFromPath).toHaveBeenCalledWith(
+        expect.stringContaining(
+          `tray/menu/${dark ? "dark" : "light"}/circle-info.png`,
+        ),
+      );
+    },
+  );
+
+  it.each([false, true])(
+    "updates the non-GNOME Linux tray image when shouldUseDarkColors changes to %s",
+    (dark) => {
+      setPlatform("linux");
+      vi.stubEnv("XDG_CURRENT_DESKTOP", "KDE");
+      Object.defineProperty(nativeTheme, "shouldUseDarkColors", {
+        value: !dark,
+        configurable: true,
+      });
+      const tray = createTray();
+      vi.mocked(tray.setContextMenu).mockClear();
+
+      const themeCall = vi
+        .mocked(nativeTheme.on)
+        .mock.calls.find(([event]) => event === "updated");
+      expect(themeCall).toBeDefined();
+      const callback = themeCall![1] as () => void;
+      Object.defineProperty(nativeTheme, "shouldUseDarkColors", {
+        value: dark,
+        configurable: true,
+      });
+      callback();
+
+      expect(tray.setImage).toHaveBeenCalledTimes(1);
+      expect(tray.setImage).toHaveBeenCalledWith(
+        `assets/icons/sidra-tray-${dark ? "dark" : "light"}.png`,
+      );
+      expect(tray.setContextMenu).toHaveBeenCalledTimes(1);
+    },
+  );
+});
+
+describe("getMenuIcon", () => {
+  describe("Linux - themed PNG icons", () => {
+    beforeEach(() => {
+      setPlatform("linux");
+    });
+
+    it("returns a NativeImage from the dark PNG directory when shouldUseDarkColors is true", () => {
+      Object.defineProperty(nativeTheme, "shouldUseDarkColors", {
+        value: true,
+        configurable: true,
+      });
+      const icon = getMenuIcon("about");
+      expect(icon).toBeDefined();
+      expect(vi.mocked(nativeImage.createFromPath)).toHaveBeenCalledWith(
+        expect.stringContaining("tray/menu/dark/circle-info.png"),
+      );
+    });
+
+    it("returns a NativeImage from the light PNG directory when shouldUseDarkColors is false", () => {
+      Object.defineProperty(nativeTheme, "shouldUseDarkColors", {
+        value: false,
+        configurable: true,
+      });
+      const icon = getMenuIcon("quit");
+      expect(icon).toBeDefined();
+      expect(vi.mocked(nativeImage.createFromPath)).toHaveBeenCalledWith(
+        expect.stringContaining("tray/menu/light/eject.png"),
+      );
+    });
+
+    it("maps the window actions to the open and closed eye PNGs", () => {
+      Object.defineProperty(nativeTheme, "shouldUseDarkColors", {
+        value: false,
+        configurable: true,
+      });
+      getMenuIcon("show-window");
+      expect(vi.mocked(nativeImage.createFromPath)).toHaveBeenCalledWith(
+        expect.stringContaining("tray/menu/light/eye.png"),
+      );
+      getMenuIcon("hide-window");
+      expect(vi.mocked(nativeImage.createFromPath)).toHaveBeenCalledWith(
+        expect.stringContaining("tray/menu/light/eye-slash.png"),
+      );
+    });
+
+    it("loads the shared 64px PNG without runtime conversion", () => {
+      Object.defineProperty(nativeTheme, "shouldUseDarkColors", {
+        value: true,
+        configurable: true,
+      });
+      const sourceToPNG = vi.fn(() => Buffer.from([]));
+      const source = {
+        isEmpty: () => false,
+        toPNG: sourceToPNG,
+      } as unknown as Electron.NativeImage;
+      vi.mocked(nativeImage.createFromPath).mockReturnValueOnce(source);
+
+      expect(getMenuIcon("about")).toBe(source);
+      expect(vi.mocked(nativeImage.createFromPath)).toHaveBeenCalledWith(
+        expect.stringContaining("tray/menu/dark/circle-info.png"),
+      );
+      expect(sourceToPNG).not.toHaveBeenCalled();
+    });
+
+    it("returns undefined when the image is empty", () => {
+      vi.mocked(nativeImage.createFromPath).mockReturnValueOnce({
+        isEmpty: () => true,
+        resize: vi.fn(function (this: { isEmpty: () => boolean }) {
+          return this;
+        }),
+      } as unknown as Electron.NativeImage);
+      expect(getMenuIcon("about")).toBeUndefined();
+    });
+  });
+});
+
+describe("initTrayStateManager", () => {
+  let player: FakePlayer;
+  let mockTray: InstanceType<typeof Tray>;
+
+  // The state manager coalesces rebuilds behind a 250ms window, so every test
+  // in this block runs on fake timers and steps past the window to see the
+  // rebuild land.
+  const COALESCE_MS = 250;
+
+  /**
+   * The handler the state manager registered for `event`. Taking it from the
+   * emitter rather than emitting keeps the async handlers awaitable, and lets a
+   * test set the playback snapshot without a state change of its own.
+   */
+  function handlerFor<K extends keyof PlayerEvents & string>(
+    event: K,
+  ): (...args: PlayerEvents[K]) => unknown {
+    const [listener] = player.listeners(event);
+    expect(listener).toBeDefined();
+    return listener as (...args: PlayerEvents[K]) => unknown;
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    // The coalescing timer is module state, and switching timer modes discards
+    // the pending callback without clearing the handle it was stored under.
+    cancelTrayRebuild();
+    player = new FakePlayer();
+    mockTray = new Tray("test-icon.png");
+    vi.mocked(Menu.buildFromTemplate).mockClear();
+    vi.mocked(downloadArtwork).mockReset();
+    vi.mocked(downloadArtwork).mockResolvedValue("/tmp/downloaded-artwork.png");
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  describe("event subscription", () => {
+    it("registers all three event listeners on the player", () => {
+      initTrayStateManager(player, mockTray);
+      expect(player.listenerCount("nowPlayingItemDidChange")).toBe(1);
+      expect(player.listenerCount("playbackStateDidChange")).toBe(1);
+      expect(player.listenerCount("volumeDidChange")).toBe(1);
+      expect(player.eventNames()).toHaveLength(3);
+    });
+  });
+
+  describe("cleanup function", () => {
+    it("removes all three event listeners from the player", () => {
+      const cleanup = initTrayStateManager(player, mockTray);
+      cleanup();
+      expect(player.eventNames()).toHaveLength(0);
+    });
+
+    it("clears the pause timer when called during an active pause timeout", () => {
+      const cleanup = initTrayStateManager(player, mockTray);
+
+      player.setPlaybackState(PlaybackState.Playing);
+      handlerFor("playbackStateDidChange")({
+        status: true,
+        state: PlaybackState.Playing,
+      });
+
+      player.setPlaybackState(PlaybackState.Paused);
+      handlerFor("playbackStateDidChange")({
+        status: true,
+        state: PlaybackState.Paused,
+      });
+
+      cleanup();
+
+      // Past the 30s expiry: a timer that survived teardown would rebuild the
+      // menu here, against a tray the app is finished with.
+      vi.mocked(Menu.buildFromTemplate).mockClear();
+      vi.advanceTimersByTime(35_000);
+
+      expect(vi.mocked(Menu.buildFromTemplate)).not.toHaveBeenCalled();
+    });
+
+    it("drops a rebuild still inside the coalescing window", () => {
+      const cleanup = initTrayStateManager(player, mockTray);
+      player.setPlaybackState(PlaybackState.Playing);
+
+      handlerFor("volumeDidChange")(0.5);
+      cleanup();
+
+      vi.advanceTimersByTime(COALESCE_MS);
+      expect(vi.mocked(Menu.buildFromTemplate)).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("pause timeout", () => {
+    it("clears stale tray state when the player document is replaced", () => {
+      initTrayStateManager(player, mockTray);
+      const payload: NowPlayingPayload = {
+        name: "Old Track",
+        artistName: "Old Artist",
+        albumName: "Old Album",
+      };
+
+      player.emitPlaybackState(PlaybackState.Playing);
+      player.emitNowPlaying(payload);
+      vi.advanceTimersByTime(COALESCE_MS);
+
+      let template = getLastTemplate();
+      expect(
+        template.some((item) =>
+          item.label?.startsWith(`${mockTrayStrings.volume}:`),
+        ),
+      ).toBe(true);
+
+      // Arm the pause timer before the old document is replaced. The reset
+      // must cancel it as well as clear the visible state.
+      player.emitPlaybackState(PlaybackState.Paused);
+      player.resetForDocumentReplacement();
+      vi.advanceTimersByTime(COALESCE_MS);
+
+      const setToolTipFn = mockTray.setToolTip as ReturnType<typeof vi.fn>;
+      expect(setToolTipFn).toHaveBeenLastCalledWith("Sidra");
+
+      template = getLastTemplate();
+      const labels = template.map((item) => item.label);
+      expect(labels).not.toContain("Old Track");
+      expect(labels).not.toContain("Old Artist");
+      for (const label of [
+        mockTrayStrings.previous,
+        mockTrayStrings.play,
+        mockTrayStrings.pause,
+        mockTrayStrings.next,
+        `${mockTrayStrings.volume}: 100%`,
+      ]) {
+        expect(labels).not.toContain(label);
+      }
+
+      vi.mocked(Menu.buildFromTemplate).mockClear();
+      vi.advanceTimersByTime(30_000);
+      expect(vi.mocked(Menu.buildFromTemplate)).not.toHaveBeenCalled();
+    });
+
+    it("clears Now Playing after 30s of inactivity when paused", () => {
+      initTrayStateManager(player, mockTray);
+
+      // createPauseEdgeTimer() needs a playing report before a paused report can arm it.
+      player.setPlaybackState(PlaybackState.Playing);
+      handlerFor("playbackStateDidChange")({
+        status: true,
+        state: PlaybackState.Playing,
+      });
+
+      player.setPlaybackState(PlaybackState.Paused);
+      handlerFor("playbackStateDidChange")({
+        status: true,
+        state: PlaybackState.Paused,
+      });
+
+      vi.mocked(Menu.buildFromTemplate).mockClear();
+      const setToolTipFn = mockTray.setToolTip as ReturnType<typeof vi.fn>;
+      setToolTipFn.mockClear();
+
+      // One second short of the expiry, the track is still on the tray.
+      vi.advanceTimersByTime(29_000);
+      expect(setToolTipFn).not.toHaveBeenCalled();
+
+      // Past the expiry and past the rebuild window: the tooltip goes back to
+      // the product name and the menu drops the Now Playing rows.
+      vi.advanceTimersByTime(2_000);
+
+      expect(setToolTipFn).toHaveBeenCalled();
+      expect(vi.mocked(Menu.buildFromTemplate)).toHaveBeenCalled();
+    });
+
+    it("cancels the pause timer when playback resumes", () => {
+      initTrayStateManager(player, mockTray);
+
+      player.setPlaybackState(PlaybackState.Playing);
+      handlerFor("playbackStateDidChange")({
+        status: true,
+        state: PlaybackState.Playing,
+      });
+
+      player.setPlaybackState(PlaybackState.Paused);
+      handlerFor("playbackStateDidChange")({
+        status: true,
+        state: PlaybackState.Paused,
+      });
+
+      vi.advanceTimersByTime(10_000);
+      player.setPlaybackState(PlaybackState.Playing);
+      handlerFor("playbackStateDidChange")({
+        status: true,
+        state: PlaybackState.Playing,
+      });
+
+      vi.mocked(Menu.buildFromTemplate).mockClear();
+      const setToolTipFn = mockTray.setToolTip as ReturnType<typeof vi.fn>;
+      setToolTipFn.mockClear();
+      vi.advanceTimersByTime(25_000);
+
+      expect(setToolTipFn).not.toHaveBeenCalled();
+    });
+
+    it("cancels the pause timer on track change", async () => {
+      initTrayStateManager(player, mockTray);
+
+      player.setPlaybackState(PlaybackState.Playing);
+      handlerFor("playbackStateDidChange")({
+        status: true,
+        state: PlaybackState.Playing,
+      });
+
+      player.setPlaybackState(PlaybackState.Paused);
+      handlerFor("playbackStateDidChange")({
+        status: true,
+        state: PlaybackState.Paused,
+      });
+
+      const payload: NowPlayingPayload = {
+        name: "New Track",
+        artistName: "Artist",
+      };
+      vi.mocked(downloadArtwork).mockResolvedValue(null);
+      player.setPlaybackState(PlaybackState.Playing);
+      await handlerFor("nowPlayingItemDidChange")(payload);
+
+      vi.mocked(Menu.buildFromTemplate).mockClear();
+      const setToolTipFn = mockTray.setToolTip as ReturnType<typeof vi.fn>;
+      setToolTipFn.mockClear();
+      vi.advanceTimersByTime(35_000);
+
+      expect(setToolTipFn).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("nowPlayingItemDidChange handler", () => {
+    it("updates tooltip and menu when a new track arrives", async () => {
+      initTrayStateManager(player, mockTray);
+      const payload: NowPlayingPayload = {
+        name: "Test Song",
+        artistName: "Test Artist",
+      };
+      vi.mocked(downloadArtwork).mockResolvedValue(null);
+      player.setPlaybackState(PlaybackState.Playing);
+
+      await handlerFor("nowPlayingItemDidChange")(payload);
+      vi.advanceTimersByTime(COALESCE_MS);
+
+      const setToolTipFn = mockTray.setToolTip as ReturnType<typeof vi.fn>;
+      expect(setToolTipFn).toHaveBeenCalled();
+      expect(vi.mocked(Menu.buildFromTemplate)).toHaveBeenCalled();
+    });
+
+    it("clears state when null payload is received", async () => {
+      initTrayStateManager(player, mockTray);
+
+      await handlerFor("nowPlayingItemDidChange")(null);
+      vi.advanceTimersByTime(COALESCE_MS);
+
+      const setToolTipFn = mockTray.setToolTip as ReturnType<typeof vi.fn>;
+      expect(setToolTipFn).toHaveBeenCalled();
+      expect(vi.mocked(Menu.buildFromTemplate)).toHaveBeenCalled();
+    });
+
+    it("downloads artwork when artworkUrl is present", async () => {
+      initTrayStateManager(player, mockTray);
+      const payload: NowPlayingPayload = {
+        name: "Song",
+        artworkUrl: "https://example.com/art.jpg",
+      };
+      player.setPlaybackState(PlaybackState.Playing);
+
+      await handlerFor("nowPlayingItemDidChange")(payload);
+
+      expect(vi.mocked(downloadArtwork)).toHaveBeenCalledWith(
+        "https://example.com/art.jpg",
+      );
+    });
+
+    it("guards against stale payload after artwork download", async () => {
+      initTrayStateManager(player, mockTray);
+
+      let resolveFirst: (value: string | null) => void;
+      const firstDownload = new Promise<string | null>((resolve) => {
+        resolveFirst = resolve;
+      });
+      vi.mocked(downloadArtwork).mockReturnValueOnce(firstDownload);
+
+      const payload1: NowPlayingPayload = {
+        name: "First Song",
+        artworkUrl: "https://example.com/art1.jpg",
+      };
+      const payload2: NowPlayingPayload = {
+        name: "Second Song",
+        artworkUrl: "https://example.com/art2.jpg",
+      };
+
+      player.setPlaybackState(PlaybackState.Playing);
+
+      const firstPromise = handlerFor("nowPlayingItemDidChange")(
+        payload1,
+      ) as Promise<void>;
+
+      // The second track lands while the first artwork is still in flight.
+      vi.mocked(downloadArtwork).mockResolvedValueOnce("/tmp/art2.png");
+      await handlerFor("nowPlayingItemDidChange")(payload2);
+
+      // Settle the second track's own rebuild, so what follows is the first
+      // track's alone.
+      vi.advanceTimersByTime(COALESCE_MS);
+      vi.mocked(Menu.buildFromTemplate).mockClear();
+
+      // The stale artwork arrives last and must not put the previous track back
+      // on a tray that has moved on.
+      resolveFirst!("/tmp/art1.png");
+      await firstPromise;
+      vi.advanceTimersByTime(COALESCE_MS);
+
+      expect(vi.mocked(Menu.buildFromTemplate)).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("playbackStateDidChange handler", () => {
+    it("clears state on terminal playback states", () => {
+      initTrayStateManager(player, mockTray);
+
+      for (const state of [
+        PlaybackState.None,
+        PlaybackState.Stopped,
+        PlaybackState.Ended,
+        PlaybackState.Completed,
+      ]) {
+        vi.mocked(Menu.buildFromTemplate).mockClear();
+        handlerFor("playbackStateDidChange")({ status: true, state });
+        vi.advanceTimersByTime(COALESCE_MS);
+        expect(vi.mocked(Menu.buildFromTemplate)).toHaveBeenCalled();
+      }
+    });
+
+    it("rebuilds menu on playback state change", () => {
+      initTrayStateManager(player, mockTray);
+      player.setPlaybackState(PlaybackState.Playing);
+
+      vi.mocked(Menu.buildFromTemplate).mockClear();
+      handlerFor("playbackStateDidChange")({
+        status: true,
+        state: PlaybackState.Playing,
+      });
+      vi.advanceTimersByTime(COALESCE_MS);
+
+      expect(vi.mocked(Menu.buildFromTemplate)).toHaveBeenCalled();
+    });
+  });
+
+  describe("volumeDidChange handler", () => {
+    it("updates state and rebuilds menu on volume change", () => {
+      initTrayStateManager(player, mockTray);
+      player.setPlaybackState(PlaybackState.Playing);
+
+      vi.mocked(Menu.buildFromTemplate).mockClear();
+      handlerFor("volumeDidChange")(0.5);
+      vi.advanceTimersByTime(COALESCE_MS);
+
+      expect(vi.mocked(Menu.buildFromTemplate)).toHaveBeenCalled();
+    });
+
+    it("ignores null volume", () => {
+      initTrayStateManager(player, mockTray);
+
+      vi.mocked(Menu.buildFromTemplate).mockClear();
+      handlerFor("volumeDidChange")(null);
+      vi.advanceTimersByTime(COALESCE_MS);
+
+      expect(vi.mocked(Menu.buildFromTemplate)).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("rebuild coalescing", () => {
+    // The hook polls mk.volume every 250ms while the slider moves, and a page
+    // in the renderer can emit far faster than that. Each rebuild walks every
+    // submenu and resizes the artwork five times.
+    it("collapses a burst of volume events into a single rebuild", () => {
+      initTrayStateManager(player, mockTray);
+      player.setPlaybackState(PlaybackState.Playing);
+      vi.mocked(Menu.buildFromTemplate).mockClear();
+
+      const onVolume = handlerFor("volumeDidChange");
+      for (let i = 1; i <= 20; i++) onVolume(i / 20);
+
+      expect(vi.mocked(Menu.buildFromTemplate)).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(COALESCE_MS);
+      expect(vi.mocked(Menu.buildFromTemplate)).toHaveBeenCalledTimes(1);
+    });
+
+    it("collapses a mixed burst of playback and volume events", () => {
+      initTrayStateManager(player, mockTray);
+      player.setPlaybackState(PlaybackState.Playing);
+      vi.mocked(Menu.buildFromTemplate).mockClear();
+
+      for (let i = 0; i < 10; i++) {
+        handlerFor("volumeDidChange")(0.5);
+        handlerFor("playbackStateDidChange")({
+          status: true,
+          state: PlaybackState.Playing,
+        });
+      }
+
+      vi.advanceTimersByTime(COALESCE_MS);
+      expect(vi.mocked(Menu.buildFromTemplate)).toHaveBeenCalledTimes(1);
+    });
+
+    it("shows the volume from the end of the burst", async () => {
+      initTrayStateManager(player, mockTray);
+      player.setPlaybackState(PlaybackState.Playing);
+      vi.mocked(downloadArtwork).mockResolvedValue(null);
+      await handlerFor("nowPlayingItemDidChange")({
+        name: "Track",
+        artistName: "Artist",
+      });
+      vi.advanceTimersByTime(COALESCE_MS);
+
+      const onVolume = handlerFor("volumeDidChange");
+      onVolume(0.25);
+      onVolume(0.5);
+      onVolume(0.75);
+      vi.mocked(Menu.buildFromTemplate).mockClear();
+      vi.advanceTimersByTime(COALESCE_MS);
+
+      const volumeItem = findItem(getLastTemplate(), "Volume");
+      expect(volumeItem!.label).toBe("Volume: 75%");
+    });
+
+    it("rebuilds again for events that arrive after the window closes", () => {
+      initTrayStateManager(player, mockTray);
+      player.setPlaybackState(PlaybackState.Playing);
+      vi.mocked(Menu.buildFromTemplate).mockClear();
+
+      const onVolume = handlerFor("volumeDidChange");
+      onVolume(0.25);
+      onVolume(0.5);
+      vi.advanceTimersByTime(COALESCE_MS);
+      expect(vi.mocked(Menu.buildFromTemplate)).toHaveBeenCalledTimes(1);
+
+      onVolume(0.75);
+      vi.advanceTimersByTime(COALESCE_MS);
+      expect(vi.mocked(Menu.buildFromTemplate)).toHaveBeenCalledTimes(2);
+    });
+
+    it("keeps rebuilding under a flood that never pauses", () => {
+      // A debounce restarted by every event would never expire here, leaving
+      // the menu frozen. The window has to close on schedule regardless.
+      initTrayStateManager(player, mockTray);
+      player.setPlaybackState(PlaybackState.Playing);
+      vi.mocked(Menu.buildFromTemplate).mockClear();
+
+      const onVolume = handlerFor("volumeDidChange");
+      for (let tick = 0; tick < 40; tick++) {
+        onVolume(tick % 2 === 0 ? 0.4 : 0.6);
+        vi.advanceTimersByTime(25);
+      }
+
+      expect(vi.mocked(Menu.buildFromTemplate)).toHaveBeenCalledTimes(4);
+    });
+  });
+});

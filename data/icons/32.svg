@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+<!-- SPDX-License-Identifier: BlueOak-1.0.0 -->
+<!-- SPDX-FileCopyrightText: 2026 melvincouwez-alt -->
+<!-- Cassette, drawn for 32px -->
+<defs>
+<linearGradient id="shell" x1="0" y1="4" x2="0" y2="29" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#6b6b6b"/><stop offset="1" stop-color="#2e2e2e"/></linearGradient>
+<linearGradient id="lbl" x1="0" y1="6" x2="0" y2="21" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ff8fab"/><stop offset=".55" stop-color="#e03a64"/><stop offset="1" stop-color="#c42a55"/></linearGradient>
+</defs>
+<rect x="1.5" y="4.5" width="29" height="24" rx="2.5" fill="url(#shell)" stroke="#141414"/>
+<rect x="2.5" y="5.5" width="27" height="22" rx="1.5" fill="none" stroke="#fff" stroke-opacity=".18"/>
+<rect x="4.5" y="6.5" width="23" height="14" rx="1" fill="url(#lbl)" stroke="#7d0a2c" stroke-opacity=".75"/>
+<rect x="7" y="10" width="18" height="8" rx="4" fill="#1a1a1a"/>
+<circle cx="11" cy="14" r="2.5" fill="#f2f2f2"/>
+<circle cx="21" cy="14" r="2.5" fill="#f2f2f2"/>
+<circle cx="11" cy="14" r="1" fill="#4d4d4d"/>
+<circle cx="21" cy="14" r="1" fill="#4d4d4d"/>
+<path d="M7.5 28.5 9 23.5h14l1.5 5z" fill="#4d4d4d" stroke="#141414" stroke-linejoin="round"/>
+<rect x="11" y="25" width="2" height="2" fill="#1a1a1a"/>
+<rect x="19" y="25" width="2" height="2" fill="#1a1a1a"/>
+</svg>

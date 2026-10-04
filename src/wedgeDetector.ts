@@ -1,0 +1,129 @@
+import { app, BrowserWindow } from "electron";
+import log from "electron-log/main";
+import {
+  Player,
+  PlaybackState,
+  PlaybackStatePayload,
+  NowPlayingPayload,
+  IntegrationContext,
+} from "./player";
+import { liveWebContents } from "./utils";
+
+const wedgeLog = log.scope("wedge");
+
+// Recovery for a wedged player: the web player can keep reporting Playing while
+// the playhead stops advancing, and nothing on the page recovers from it. A one
+// second check skips forward when nothing has advanced for STALL_THRESHOLD_MS.
+// END_SAFETY_MARGIN_MS holds the end of a track out of scope, where a track
+// about to finish looks the same as a stall, and MAX_SKIP_ATTEMPTS bounds the
+// recovery so a queue that will not play cannot be skipped through end to end.
+const STALL_THRESHOLD_MS = 5000;
+const END_SAFETY_MARGIN_MS = 10000;
+const CHECK_INTERVAL_MS = 1000;
+const MAX_SKIP_ATTEMPTS = 3;
+
+let playerRef: Player | null = null;
+let lastAdvanceTime = 0;
+let durationMs = 0;
+let checkTimer: ReturnType<typeof setInterval> | null = null;
+let skipAttempts = 0;
+let initialised = false;
+
+function startTimer(getWin: () => BrowserWindow | null): void {
+  if (checkTimer) return;
+  checkTimer = setInterval(() => checkForWedge(getWin), CHECK_INTERVAL_MS);
+}
+
+function stopTimer(): void {
+  if (checkTimer) {
+    clearInterval(checkTimer);
+    checkTimer = null;
+  }
+}
+
+function checkForWedge(getWin: () => BrowserWindow | null): void {
+  if (!playerRef?.playbackSnapshot().isPlaying) return;
+  if (Date.now() - lastAdvanceTime < STALL_THRESHOLD_MS) return;
+  const positionUs = playerRef.playbackSnapshot().positionUs;
+  if (durationMs > 0 && durationMs - positionUs / 1000 < END_SAFETY_MARGIN_MS)
+    return;
+  if (skipAttempts >= MAX_SKIP_ATTEMPTS) return;
+
+  skipAttempts++;
+  lastAdvanceTime = Date.now();
+  const contents = liveWebContents(getWin());
+  const result = contents ? "sent" : "dropped";
+  wedgeLog.warn(
+    `source=wedge channel=player:next reason=playback-stalled attempt=${skipAttempts}/${MAX_SKIP_ATTEMPTS} result=${result}`,
+  );
+
+  contents?.send("player:next" satisfies ReceiveChannel);
+}
+
+/**
+ * Clear the skip count and stop the check timer. A reload and a service switch
+ * must call this first: the timer otherwise survives the navigation and fires a
+ * spurious skip-forward once the page has re-initialised.
+ */
+export function reset(): void {
+  skipAttempts = 0;
+  stopTimer();
+}
+
+/** Attach the detector once because its state and listeners are module-scoped. */
+export function init(ctx: IntegrationContext): void {
+  const { player, getMainWindow: getWin } = ctx;
+
+  // Module-scoped state requires one set of listeners and one will-quit handler,
+  // regardless of whether the caller guards repeated initialisation.
+  if (initialised) {
+    wedgeLog.warn("wedge detector already initialised, ignoring repeat init");
+    return;
+  }
+  initialised = true;
+
+  playerRef = player;
+
+  let lastSeenPositionUs = 0;
+
+  // Named references let will-quit remove the same listeners.
+  const onPlaybackStateDidChange = (payload: PlaybackStatePayload): void => {
+    const nowPlaying = payload?.state === PlaybackState.Playing;
+    lastAdvanceTime = Date.now();
+    skipAttempts = 0;
+
+    if (nowPlaying) {
+      startTimer(getWin);
+    } else {
+      stopTimer();
+    }
+  };
+
+  const onNowPlayingItemDidChange = (
+    payload: NowPlayingPayload | null,
+  ): void => {
+    durationMs = payload?.durationInMillis ?? 0;
+    lastAdvanceTime = Date.now();
+    skipAttempts = 0;
+  };
+
+  const onPlaybackTimeDidChange = (payload: number): void => {
+    if (payload !== lastSeenPositionUs) {
+      lastSeenPositionUs = payload;
+      lastAdvanceTime = Date.now();
+    }
+  };
+
+  player.on("playbackStateDidChange", onPlaybackStateDidChange);
+  player.on("nowPlayingItemDidChange", onNowPlayingItemDidChange);
+  player.on("playbackTimeDidChange", onPlaybackTimeDidChange);
+
+  app.on("will-quit", () => {
+    stopTimer();
+    player.removeListener("playbackStateDidChange", onPlaybackStateDidChange);
+    player.removeListener("nowPlayingItemDidChange", onNowPlayingItemDidChange);
+    player.removeListener("playbackTimeDidChange", onPlaybackTimeDidChange);
+  });
+
+  wedgeLog.info("wedge detector initialised");
+}

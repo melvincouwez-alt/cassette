@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self'; img-src data: https://*.mzstatic.com">
+<link rel="stylesheet" href="headerbar.css">
+</head>
+<body class="loading">
+<header id="headerbar">
+  <div class="side" id="start">
+    <span class="group">
+      <button data-action="back" id="back" title="Précédent"></button>
+      <button data-action="forward" id="forward" title="Suivant"></button>
+    </span>
+    <span class="group transport">
+      <button data-action="previous" id="previous" title="Morceau précédent"></button>
+      <button data-action="playPause" id="playPause" class="play" title="Lecture"></button>
+      <button data-action="next" id="next" title="Morceau suivant"></button>
+    </span>
+  </div>
+  <div id="center">
+    <h1 id="title">Cassette</h1>
+    <div id="nowplaying" hidden>
+      <img id="art" alt="" width="32" height="32">
+      <div class="meta">
+        <div class="line"><span id="track-title"></span><span id="track-artist"></span></div>
+        <div class="progress">
+          <span id="elapsed" class="time">0:00</span>
+          <div id="scrubber" role="slider" tabindex="0" aria-label="Position dans le morceau" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="fill"></div></div>
+          <span id="remaining" class="time">0:00</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="side" id="end">
+    <span class="volume">
+      <button data-action="mute" id="mute" title="Couper le son"></button>
+      <input type="range" id="volume" min="0" max="100" step="1" value="100" aria-label="Volume de Cassette">
+    </span>
+    <span class="group extra">
+      <button data-action="shuffle" id="shuffle" title="Lecture aléatoire"></button>
+      <button data-action="repeat" id="repeat" title="Répéter"></button>
+      <button data-action="lyrics" id="lyrics" title="Paroles"></button>
+      <button data-action="queue" id="queue" title="À suivre"></button>
+    </span>
+    <button data-action="settings" id="settings" title="Réglages"></button>
+  </div>
+</header>
+<main id="cover" aria-hidden="true"><div class="spinner"></div></main>
+<script src="headerbar.js"></script>
+</body>
+</html>

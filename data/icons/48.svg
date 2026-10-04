@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+<!-- SPDX-License-Identifier: BlueOak-1.0.0 -->
+<!-- SPDX-FileCopyrightText: 2026 melvincouwez-alt -->
+<!-- Cassette, drawn for 48px: fills and 1px lines sit on whole pixels -->
+<defs>
+<linearGradient id="shell" x1="0" y1="6" x2="0" y2="43" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#6b6b6b"/><stop offset="1" stop-color="#2e2e2e"/></linearGradient>
+<linearGradient id="lbl" x1="0" y1="9" x2="0" y2="31" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ff8fab"/><stop offset=".55" stop-color="#e03a64"/><stop offset="1" stop-color="#c42a55"/></linearGradient>
+<radialGradient id="sh" cx="24" cy="44.5" r="21" gradientTransform="matrix(1 0 0 .15 0 37.8)" gradientUnits="userSpaceOnUse"><stop offset="0" stop-opacity=".45"/><stop offset="1" stop-opacity="0"/></radialGradient>
+</defs>
+<ellipse cx="24" cy="44.5" rx="21" ry="3" fill="url(#sh)"/>
+<rect x="2.5" y="6.5" width="43" height="36" rx="3.5" fill="url(#shell)" stroke="#141414"/>
+<rect x="3.5" y="7.5" width="41" height="34" rx="2.5" fill="none" stroke="#fff" stroke-opacity=".18"/>
+<rect x="6.5" y="9.5" width="35" height="21" rx="1.5" fill="url(#lbl)" stroke="#7d0a2c" stroke-opacity=".75"/>
+<rect x="7" y="10" width="34" height="1" fill="#fff" fill-opacity=".4"/>
+<rect x="11" y="15" width="26" height="11" rx="5.5" fill="#1a1a1a"/>
+<rect x="20" y="18" width="8" height="5" fill="#5a3a44"/>
+<circle cx="16.5" cy="20.5" r="3.5" fill="#f2f2f2"/>
+<circle cx="31.5" cy="20.5" r="3.5" fill="#f2f2f2"/>
+<circle cx="16.5" cy="20.5" r="1.5" fill="#4d4d4d"/>
+<circle cx="31.5" cy="20.5" r="1.5" fill="#4d4d4d"/>
+<path d="M11.5 42.5 13.5 35.5h21l2 7z" fill="#4d4d4d" stroke="#141414" stroke-linejoin="round"/>
+<rect x="17" y="38" width="2" height="2" rx="1" fill="#1a1a1a"/>
+<rect x="29" y="38" width="2" height="2" rx="1" fill="#1a1a1a"/>
+<rect x="22" y="38" width="4" height="2" fill="#1a1a1a"/>
+</svg>

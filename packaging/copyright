@@ -1,0 +1,53 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: Cassette
+Upstream-Contact: melvincouwez-alt <301110918+melvincouwez-alt@users.noreply.github.com>
+Source: https://github.com/melvincouwez-alt/cassette
+Comment: Cassette is a fork of Sidra 1.1.2 by Martin Wimpress
+ (https://github.com/wimpysworld/sidra). Apple, Apple Music, Apple Music
+ Classical, iTunes and the Apple logo are trademarks of Apple Inc. Cassette is
+ not affiliated with or endorsed by Apple.
+ .
+ The Widevine Content Decryption Module belongs to Google LLC and is not
+ shipped in this package: CastLabs Electron downloads it from Google's
+ component updater on first launch, into the user's profile.
+
+Files: *
+Copyright: 2026 Martin Wimpress and the Sidra contributors
+           2026 melvincouwez-alt
+License: BlueOak-1.0.0
+ The full text is in /usr/share/doc/cassette/LICENSE and at
+ https://blueoakcouncil.org/license/1.0.0
+
+Files: opt/Cassette/*
+Copyright: GitHub Inc., OpenJS Foundation and Electron contributors
+           castLabs GmbH (CastLabs Electron)
+License: MIT
+Comment: Electron's licence is in /opt/Cassette/LICENSE.electron.txt. Chromium
+ and its third-party components carry the licences listed in
+ /opt/Cassette/LICENSES.chromium.html (BSD-3-Clause and others).
+
+Files: opt/Cassette/resources/app.asar
+Comment: JavaScript libraries bundled with their own LICENSE files inside the
+ archive (node_modules/<name>/LICENSE):
+ MIT: @holusion/dbus-next, @nornagon/put, ajv, duplexer, electron-conf,
+ electron-log, event-stream, fast-deep-equal, json-schema-traverse,
+ map-stream, require-from-string, safe-buffer, split, stream-combiner,
+ xml2js, xmlbuilder.
+ MIT or Apache-2.0: from, pause-stream, through.
+ Apache-2.0: jsbi, long.
+ BSD-3-Clause: fast-uri.
+ BlueOak-1.0.0: sax.
+
+
+Files: opt/Cassette/resources/app.asar.unpacked/assets/icons/tray/*
+Copyright: Fonticons, Inc. (Font Awesome Free)
+License: CC-BY-4.0
+Comment: Tray menu icons, inherited from Sidra.
+ https://fontawesome.com/license/free
+
+Files: usr/share/icons/hicolor/*/apps/io.github.melvincouwez.Cassette.svg
+       usr/share/icons/hicolor/*/apps/cassette.png
+       opt/Cassette/resources/app.asar.unpacked/assets/icons/sidra-tray-*
+       opt/Cassette/resources/app.asar.unpacked/assets/cassette-logo.png
+Copyright: 2026 melvincouwez-alt
+License: BlueOak-1.0.0

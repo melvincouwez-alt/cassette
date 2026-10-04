@@ -1,0 +1,74 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+  font-size: 14px;
+  color: var(--systemPrimary, CanvasText);
+  background: var(--pageBG, Canvas);
+  --border: var(--labelDivider, color-mix(in srgb, CanvasText 15%, Canvas));
+  --surface: var(--opaqueShelfBG, color-mix(in srgb, CanvasText 3%, Canvas));
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; }
+main { max-inline-size: 720px; margin-inline: auto; padding: 28px 24px 36px; }
+h1 { margin: 0 0 28px; font-size: 26px; font-weight: 650; letter-spacing: -0.025em; }
+h2 { margin: 0 0 10px; font-size: 13px; font-weight: 650; }
+section + section { margin-block-start: 24px; }
+.group { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+.row { min-block-size: 58px; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.row + .row, #lastfm { border-block-start: 1px solid var(--border); }
+label { line-height: 1.4; }
+select, button { font: inherit; color: var(--systemPrimary, CanvasText); background: var(--playerLCDBGFill, Canvas); border: 1px solid var(--border); border-radius: 6px; min-block-size: 36px; padding: 6px 10px; }
+select { inline-size: 54%; max-inline-size: 290px; min-inline-size: 0; }
+button { cursor: pointer; max-inline-size: 100%; }
+button:hover { background: var(--surface); }
+input[type="checkbox"] { accent-color: var(--keyColor, AccentColor); inline-size: 20px; block-size: 20px; flex-shrink: 0; margin: 0; cursor: pointer; }
+.toggle { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--keyColor, Highlight); outline-offset: 3px; }
+.lastfm-details { padding: 0 16px 16px; }
+#lastfm-status { margin: 0 0 12px; overflow-wrap: anywhere; unicode-bidi: plaintext; }
+#lastfm-status:empty { display: none; }
+#error { border: 1px solid var(--border); border-inline-start: 3px solid Mark; padding: 12px; line-height: 1.5; }
+@media (max-width: 420px) {
+  main { padding: 20px 16px 28px; }
+  .row:not(.toggle) { flex-direction: column; align-items: stretch; gap: 8px; }
+  select { inline-size: 100%; max-inline-size: none; }
+}
+
+/* Cassette: elementary look when the elementary theme is active. Switches in place
+   of checkboxes, cards and headings as in System Settings. */
+:root[data-theme="elementary"] main { padding: 24px 24px 32px; }
+:root[data-theme="elementary"] h1 { font-size: 24px; font-weight: 700; letter-spacing: 0; }
+:root[data-theme="elementary"] h2 { font-size: 12px; font-weight: 700; opacity: 0.75; }
+:root[data-theme="elementary"] .group { border-radius: 8px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
+:root[data-theme="elementary"] select,
+:root[data-theme="elementary"] button { border-radius: 6px; min-block-size: 32px; box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06); }
+:root[data-theme="elementary"] input[type="checkbox"] {
+  appearance: none;
+  inline-size: 40px;
+  block-size: 22px;
+  border-radius: 11px;
+  background: color-mix(in srgb, CanvasText 18%, Canvas);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15);
+  position: relative;
+  transition: background-color 150ms ease;
+}
+:root[data-theme="elementary"] input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 2px;
+  inset-inline-start: 2px;
+  inline-size: 18px;
+  block-size: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: transform 150ms ease;
+}
+:root[data-theme="elementary"] input[type="checkbox"]:checked { background: var(--keyColor, AccentColor); }
+:root[data-theme="elementary"] input[type="checkbox"]:checked::after { transform: translateX(18px); }
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="elementary"] input[type="checkbox"],
+  :root[data-theme="elementary"] input[type="checkbox"]::after { transition: none; }
+}

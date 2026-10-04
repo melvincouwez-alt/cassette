@@ -1,0 +1,241 @@
+// Keep this palette renderer free of Electron so unit tests can import it.
+//
+// Everything inside the template literals below is runtime output. The string
+// ships to the renderer through insertCSS() on every page load. Comments inside
+// a literal must be one-line section labels for the DevTools style pane, except
+// for the leading banner. Keep design rationale in TypeScript comments.
+
+/** The 12 semantic colour slots a palette fills for one colour scheme. */
+export interface SchemeColours {
+  /** Page background */
+  base: string;
+  /** Opaque shelf, player, and material backgrounds (darker than base) */
+  mantle: string;
+  /** Footer background and deepest shadows (darker than mantle) */
+  crust: string;
+  /** LCD fill, tracklist rows, banner dropdowns */
+  surface0: string;
+  /** Scrollbar thumb, segmented control selection, generic accents */
+  surface1: string;
+  /** Borders and dividers */
+  surface2: string;
+  /** Tertiary text */
+  overlay: string;
+  /** Primary text */
+  text: string;
+  /** Secondary text */
+  subtext1: string;
+  /** Emphasised secondary text */
+  subtext0: string;
+  /** Key colour: brand, selection, scrubber fill, platter buttons */
+  accent: string;
+  /** Accent rollover and pressed states */
+  accentHover: string;
+}
+
+/** A theme: name, label, and one palette per colour scheme. */
+export interface ThemeDefinition {
+  name: string;
+  label: string;
+  dark: SchemeColours;
+  light: SchemeColours;
+}
+
+function rgbTriplet(hex: string): string {
+  const value = hex.replace("#", "");
+  const r = parseInt(value.slice(0, 2), 16);
+  const g = parseInt(value.slice(2, 4), 16);
+  const b = parseInt(value.slice(4, 6), 16);
+  return `${r},${g},${b}`;
+}
+
+function rgba(hex: string, alpha: number): string {
+  return `rgba(${rgbTriplet(hex)},${alpha})`;
+}
+
+function rgbaSpaced(hex: string, alpha: number): string {
+  return `rgba(${rgbTriplet(hex).split(",").join(", ")}, ${alpha})`;
+}
+
+// Four notes on the rules below, kept here because a comment beside a rule
+// would ship to the renderer.
+//
+// The * block is the only declaration site for the accent group. The shadow DOM
+// of amp-* elements does not inherit from :root, and Apple declares those
+// variables without !important, so * wins at the root element too. It also
+// carries the variables Apple re-declares on the element itself.
+//
+// .chrome-player::before paints the player bar, which is itself transparent.
+// Classical declares the gradient on that pseudo and music re-declares its fill
+// there, so neither is reachable from the * block.
+//
+// .side-panel and its header wrapper paint a direct background-color, which no
+// :root variable reaches.
+//
+// The scheme block carries no ::-webkit-scrollbar-* rules. From Chrome 121
+// Chromium ignores that pseudo-element on any element carrying a non-auto
+// scrollbar-color, which the block sets on every element.
+function schemeBlock(c: SchemeColours): string {
+  const playerBG = rgba(c.mantle, 0.88);
+  return `  :root {
+    /* Background & Structure */
+    --pageBG: ${c.base} !important;
+    --pageBG-rgb: ${rgbTriplet(c.base)} !important;
+    --opaqueShelfBG: ${c.mantle} !important;
+    --fallbackMaterialBG: ${rgba(c.mantle, 0.97)} !important;
+    --shelfBG: ${rgba(c.surface0, 0.15)} !important;
+    --genericJoeColor: ${c.surface1} !important;
+
+    /* Text */
+    --systemPrimary: ${rgba(c.text, 0.85)} !important;
+    --systemPrimary-vibrant: ${c.text} !important;
+    --systemSecondary: ${rgba(c.subtext1, 0.55)} !important;
+    --systemSecondary-vibrant: ${c.subtext0} !important;
+    --systemTertiary: ${rgba(c.overlay, 0.25)} !important;
+    --systemQuaternary: ${rgba(c.surface1, 0.15)} !important;
+    --systemQuinary: ${rgba(c.surface0, 0.08)} !important;
+
+    /* Borders & Dividers */
+    --labelDivider: ${rgba(c.surface2, 0.2)} !important;
+    --vibrantDivider: ${rgba(c.surface2, 0.25)} !important;
+
+    /* Player */
+    --playerBackground: ${playerBG} !important;
+    --playerBackgroundFallback: ${rgba(c.mantle, 0.97)} !important;
+    --playerLCDBGFill: ${c.surface0} !important;
+    --playerMissingArtworkBg: ${c.surface1} !important;
+    --playerMissingArtworkIcon: ${c.surface2} !important;
+    --playerScrubberFill: ${c.accent} !important;
+    --playerScrubberTrack: ${rgba(c.surface1, 0.2)} !important;
+    --playerPlatterButtonBGFill: ${c.accent} !important;
+    --playerPlatterButtonIconFill: ${c.base} !important;
+    --playerDropShadow2: ${rgba(c.crust, 0.1)} !important;
+
+    /* Navigation */
+    --segmentedControlBG: ${rgba(c.surface0, 0.2)} !important;
+    --segmentedControlSelectedBG: ${c.surface1} !important;
+
+    /* Tracklist */
+    --tracklistHoverColor: ${rgba(c.surface0, 0.08)} !important;
+    --tracklistAltRowColor: ${rgba(c.surface0, 0.03)} !important;
+
+    /* Materials */
+    --systemStandardThickMaterialSover: ${rgba(c.mantle, 0.72)} !important;
+    --systemHeaderMaterialSover: ${rgba(c.mantle, 0.8)} !important;
+    --systemToolbarTitlebarMaterialSover: ${rgba(c.mantle, 0.8)} !important;
+  }
+
+  /* Scrollbars */
+  * {
+    scrollbar-color: ${c.surface1} ${c.mantle} !important;
+  }
+
+  /* Accent variables, and variables Apple re-declares on the element */
+  * {
+    --keyColor: ${c.accent} !important;
+    --keyColor-rgb: ${rgbTriplet(c.accent)} !important;
+    --keyColor-rollover: ${c.accentHover} !important;
+    --keyColor-pressed: ${c.accentHover} !important;
+    --keyColor-deepPressed: ${c.accentHover} !important;
+    --keyColor-disabled: ${rgba(c.accent, 0.35)} !important;
+    --musicKeyColor: ${c.accent} !important;
+    --musicBrandBG: ${c.accent} !important;
+    --selectionColor: ${c.accent} !important;
+    --chromePlayerBGFill: ${playerBG} !important;
+    --lcd-bg-color: ${c.surface0} !important;
+  }
+
+  /* Player bar */
+  .chrome-player::before {
+    background-color: ${playerBG} !important;
+    background-image: none !important;
+  }
+
+  /* Side panels (Lyrics + Up Next) */
+  .side-panel {
+    background-color: ${rgbaSpaced(c.mantle, 0.97)} !important;
+    backdrop-filter: blur(50px) saturate(100%) !important;
+  }
+  .side-panel.side-panel-header-wrapper,
+  .side-panel .side-panel-header-wrapper,
+  .side-panel-header-wrapper {
+    background-color: ${rgbaSpaced(c.mantle, 0.97)} !important;
+  }
+
+  /* Footer */
+  :is(
+    footer,
+    .scrollable-page footer
+  ) {
+    background: ${c.crust} !important;
+    background-color: ${c.crust} !important;
+    border-color: ${rgba(c.surface2, 0.2)} !important;
+    color: ${rgba(c.text, 0.85)} !important;
+  }
+
+  :is(
+    footer,
+    .scrollable-page footer
+  ) :is(a, button, select, [role="button"], [class*="dropdown"]) {
+    background-color: ${c.mantle} !important;
+    border-color: ${rgba(c.surface2, 0.25)} !important;
+    color: ${rgba(c.text, 0.85)} !important;
+  }
+
+  /* Country/region picker modal background */
+  [class*="locale-switcher"] {
+    background: ${c.mantle} !important;
+    background-color: ${c.mantle} !important;
+  }
+
+  /* Country/region banner (bottom strip) */
+  [data-testid="banner-container"] {
+    background: ${c.mantle} !important;
+    background-color: ${c.mantle} !important;
+    color: ${rgba(c.text, 0.85)} !important;
+    border-color: ${rgba(c.surface2, 0.25)} !important;
+  }
+  [data-testid="banner-container"] [data-testid="close-button"] {
+    color: ${rgba(c.text, 0.85)} !important;
+    fill: ${rgba(c.text, 0.85)} !important;
+  }
+  [data-testid="banner-container"] [data-testid="close-button"] svg path {
+    fill: ${rgba(c.text, 0.85)} !important;
+  }
+  [data-testid="banner-container"] [data-testid="dropdown-button"] {
+    background-color: ${c.surface0} !important;
+    border-color: ${rgba(c.surface2, 0.4)} !important;
+    color: ${rgba(c.text, 0.85)} !important;
+  }`;
+}
+
+/**
+ * Renders the whole override stylesheet for a theme, both colour-scheme variants
+ * included. Everything inside the returned literal, comments as well as rules,
+ * ships to the renderer, so keep rationale in the source and out of the output.
+ *
+ * Apple hardcodes background-color: rgb(214, 0, 23) on
+ * .button.primary button.click-action and never reads --keyColor there.
+ * The direct override is therefore necessary for accent-coloured buttons.
+ */
+export function buildThemeCss(theme: ThemeDefinition): string {
+  return `/*
+ * ${theme.label} theme for Apple Music
+ * Dark and light variants via prefers-color-scheme
+ * Generated by src/themeTemplate.ts from src/palettes.ts
+ */
+
+@media (prefers-color-scheme: dark) {
+${schemeBlock(theme.dark)}
+}
+
+@media (prefers-color-scheme: light) {
+${schemeBlock(theme.light)}
+}
+
+/* Accent-coloured buttons */
+.button.primary button.click-action {
+  background-color: var(--keyColor) !important;
+}
+`;
+}
