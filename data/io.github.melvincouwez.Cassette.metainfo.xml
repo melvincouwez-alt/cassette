@@ -34,6 +34,11 @@
   </requires>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.1.2" date="2026-10-04">
+      <description>
+        <p>Covalence is now called Boomerang: texts and keywords follow.</p>
+      </description>
+    </release>
     <release version="0.1.1" date="2026-10-04">
       <description>
         <p>Own repository and releases, AppStream data, fuller credits and licence notices, links in the About window.</p>

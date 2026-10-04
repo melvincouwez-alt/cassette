@@ -1,7 +1,7 @@
 {
   "name": "cassette",
   "productName": "Cassette",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Apple Music for elementary OS. Based on Sidra by Martin Wimpress.",
   "main": "dist/main.js",
   "scripts": {
@@ -87,7 +87,7 @@
           "Name": "Cassette",
           "GenericName": "Apple Music",
           "Comment": "Listen to Apple Music",
-          "Keywords": "Apple;Music;iTunes;Musique;Cassette;Covalence;",
+          "Keywords": "Apple;Music;iTunes;Musique;Cassette;Boomerang;",
           "StartupWMClass": "io.github.melvincouwez.Cassette",
           "Comment[fr]": "Écouter Apple Music",
           "Icon": "io.github.melvincouwez.Cassette",

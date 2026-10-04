@@ -1,6 +1,6 @@
 # Cassette
 
-Cassette est un client Apple Music pour elementary OS. Il affiche `music.apple.com` dans une fenêtre qui suit le style d'elementary : barre d'en-tête framboise, police Inter, palette claire et sombre du système. Cassette fait partie de l'ensemble Covalence, qui la propose dans son onglet « Services Apple ».
+Cassette est un client Apple Music pour elementary OS. Il affiche `music.apple.com` dans une fenêtre qui suit le style d'elementary : barre d'en-tête framboise, police Inter, palette claire et sombre du système. Cassette fait partie de l'ensemble Boomerang, qui la propose dans son onglet « Services Apple ».
 
 Cassette part de [Sidra](https://github.com/wimpysworld/sidra) 1.1.2, de Martin Wimpress. Le code propre à macOS et Windows, Discord, les thèmes de Sidra, Nix et la mise à jour par GitHub ont été retirés. Cassette ne suit plus Sidra.
 
@@ -16,7 +16,7 @@ Cassette part de [Sidra](https://github.com/wimpysworld/sidra) 1.1.2, de Martin 
 
 ## Installer
 
-Cassette est livrée en paquet `.deb`. Covalence peut l'installer depuis son onglet « Services Apple ». Pour construire le paquet soi-même :
+Cassette est livrée en paquet `.deb`. Boomerang peut l'installer depuis son onglet « Services Apple ». Pour construire le paquet soi-même :
 
 ```bash
 npm install
