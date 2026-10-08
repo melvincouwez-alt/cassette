@@ -13,7 +13,7 @@ Cassette part de [Sidra](https://github.com/wimpysworld/sidra) 1.1.2, de Martin 
 - Commandes multimédia du système par MPRIS (`org.mpris.MediaPlayer2.cassette`) : touches du clavier, indicateur son du panneau, raccourcis du lanceur (lecture/pause, suivant, précédent, arrêt).
 - Une notification par morceau, avec la pochette et des boutons lecture/pause, précédent et suivant. Le son des notifications est coupé au premier lancement ; le réglage se trouve dans Paramètres système > Notifications.
 - Liens `itms://` ouverts dans Cassette.
-- Molette sur le réglage de volume, zoom, page de démarrage au choix, fermeture dans la zone de notification.
+- Volume réglable à la molette, zoom, page de démarrage au choix, fermeture dans la zone de notification.
 
 ## Installer
 
@@ -37,7 +37,16 @@ just test           # tests Vitest
 just lint           # vérification TypeScript de l'appli et des tests
 ```
 
-`CASSETTE_DEVTOOLS=1` ouvre les outils de développement. Pour vérifier un rendu sans afficher de fenêtre : `CASSETTE_DEV_PROBE=/chemin/capture.png npx electron . --no-sandbox` capture la page dans un PNG ; `CASSETTE_DEV_DARK=1` force le thème sombre. Les notes techniques sont dans [`AGENTS.md`](AGENTS.md).
+`CASSETTE_DEVTOOLS=1` ouvre les outils de développement. Pour vérifier un rendu sans afficher de fenêtre : `CASSETTE_DEV_PROBE=/chemin/capture.png npx electron . --no-sandbox` capture la page dans un PNG ; `CASSETTE_DEV_DARK=1` force le thème sombre.
+
+## Notes techniques
+
+- Identifiant : `io.github.melvincouwez.Cassette` (`src/identity.ts`), repris par le fichier `.desktop`, l'identifiant d'application Wayland, les notifications et MPRIS. La partition de session reste `persist:sidra` : la renommer déconnecterait tous les utilisateurs d'Apple Music.
+- Fenêtre : le cadre GTK dessiné par Chromium est gardé (coins arrondis, ombre, bords de redimensionnement) et sa barre de titre est masquée par Window Controls Overlay (`src/windowChrome.ts`). La barre d'en-tête est une vue séparée (`src/headerbar.ts`, `assets/headerbar.*`) avec son propre preload isolé.
+- Panneau latéral : une seconde vue (`src/sidePanel.ts`, `assets/panel.*`) interroge MusicKit dans la page d'Apple par des scripts fixes. Le seul texte extérieur transmis est le terme recherché, passé par `JSON.stringify()`. Les adresses des résultats sont vérifiées avant d'être ouvertes.
+- Thème : une seule feuille de style (`src/theme.ts`), palette elementary et accent framboise de Cassette quel que soit l'accent du système.
+- Notifications : Electron ignore `silent` sous Linux, donc `src/notify.ts` coupe une fois par profil la clé `sounds` des notifications d'elementary.
+- Paquet : `npx electron-builder --linux deb --publish never` produit `release/cassette_<version>_amd64.deb`, qui remplace l'ancien paquet `aria`.
 
 ## Crédits
 

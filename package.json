@@ -1,8 +1,8 @@
 {
   "name": "cassette",
   "productName": "Cassette",
-  "version": "0.4.0",
-  "description": "Apple Music for elementary OS. Based on Sidra by Martin Wimpress.",
+  "version": "0.4.1",
+  "description": "Écouter Apple Music sur elementary OS. D'après Sidra de Martin Wimpress.",
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc",
@@ -83,7 +83,7 @@
       "target": [
         "deb"
       ],
-      "category": "Audio",
+      "category": "AudioVideo;Audio;Player",
       "executableName": "cassette",
       "desktop": {
         "entry": {
@@ -91,10 +91,8 @@
           "MimeType": "x-scheme-handler/itms;",
           "Name": "Cassette",
           "GenericName": "Apple Music",
-          "Comment": "Listen to Apple Music",
           "Keywords": "Apple;Music;iTunes;Musique;Cassette;Boomerang;",
           "StartupWMClass": "io.github.melvincouwez.Cassette",
-          "Comment[fr]": "Écouter Apple Music",
           "Icon": "io.github.melvincouwez.Cassette",
           "X-GNOME-UsesNotifications": "true"
         },
@@ -133,6 +131,7 @@
       }
     ],
     "deb": {
+      "packageCategory": "sound",
       "maintainer": "melvincouwez-alt <301110918+melvincouwez-alt@users.noreply.github.com>",
       "priority": "optional",
       "depends": [

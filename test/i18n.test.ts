@@ -20,7 +20,7 @@ describe("getLocalizedString", () => {
   });
 
   it("falls back to base language", () => {
-    expect(getLocalizedString(LOADING_TEXT, ["fr-CA"])).toBe("Chargement...");
+    expect(getLocalizedString(LOADING_TEXT, ["fr-CA"])).toBe("Chargement…");
   });
 
   it("falls back to English when no match", () => {
