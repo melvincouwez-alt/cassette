@@ -11,8 +11,8 @@
     <name>melvincouwez-alt</name>
   </developer>
   <description>
-    <p>Cassette plays Apple Music in an elementary OS window: header bar, light and dark styles, media keys and the sound indicator (MPRIS), track notifications and optional Last.fm scrobbling. An Apple Music subscription is required.</p>
-    <p xml:lang="fr">Cassette lit Apple Music dans une fenêtre elementary OS : barre d’en-tête, styles clair et sombre, touches multimédia et indicateur de son (MPRIS), notifications de piste et scrobbling Last.fm facultatif. Un abonnement Apple Music est nécessaire.</p>
+    <p>Cassette plays Apple Music in an elementary OS window: header bar, light and dark styles, media keys and the sound indicator (MPRIS), a mini player and track notifications. An Apple Music subscription is required.</p>
+    <p xml:lang="fr">Cassette lit Apple Music dans une fenêtre elementary OS : barre d’en-tête, styles clair et sombre, touches multimédia et indicateur de son (MPRIS), mini-lecteur et notifications de piste. Un abonnement Apple Music est nécessaire.</p>
     <p>Cassette is a fork of Sidra by Martin Wimpress. Apple Music is a trademark of Apple Inc.; Cassette is not affiliated with or endorsed by Apple.</p>
     <p xml:lang="fr">Cassette est un fork de Sidra de Martin Wimpress. Apple Music est une marque d’Apple Inc. ; Cassette n’est ni affiliée à Apple ni approuvée par Apple.</p>
   </description>
@@ -34,6 +34,19 @@
   </requires>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.4.0" date="2026-10-08">
+      <description>
+        <p>A side panel of Cassette's own replaces Apple's: time-synced lyrics that follow the song, the queue with a click to jump to a track, and search, which plays a song or opens an album, artist or playlist.</p>
+      </description>
+    </release>
+    <release version="0.2.0" date="2026-10-08">
+      <description>
+        <p>Mini player: the window shrinks to its header bar, with the artwork, the track and the playback controls.</p>
+        <p>The Settings window has the raspberry header bar of the main window.</p>
+        <p>The disk cache is capped at 256 MB; it grew past 1 GB with streamed tracks.</p>
+        <p>Last.fm scrobbling and game controller navigation are removed.</p>
+      </description>
+    </release>
     <release version="0.1.2" date="2026-10-04">
       <description>
         <p>Covalence is now called Boomerang: texts and keywords follow.</p>

@@ -11,7 +11,7 @@
   document.title = params.get('settings') || 'Settings';
   document.querySelector('[data-label="settings"]').textContent = document.title;
   const selects = ['musicService', 'startPage', 'zoomFactor'];
-  const toggles = ['closeToTray', 'notifications', 'lastfmEnabled'];
+  const toggles = ['closeToTray', 'notifications'];
   let state;
   // Pushed state supersedes pending replies from getState() and apply().
   let revision = 0;
@@ -26,7 +26,6 @@
 
   function render(next) {
     if (closed) return;
-    const focusedId = document.activeElement?.id;
     state = next;
     document.documentElement.lang = state.lang;
     document.documentElement.dir = /^(ar|he)(-|$)/i.test(state.lang) ? 'rtl' : 'ltr';
@@ -49,16 +48,8 @@
       select.value = String(state[key]);
     }
     for (const key of toggles) {
-      byId(key).checked = key === 'lastfmEnabled' ? state.lastfm.enabled : state[key];
+      byId(key).checked = state[key];
     }
-    byId('lastfm').hidden = !state.lastfm.available;
-    byId('lastfmEnabled').disabled = !state.lastfm.connected;
-    byId('lastfm-status').textContent = state.lastfm.connected
-      ? state.labels.lastfmConnected.replace('{name}', state.lastfm.username) : '';
-    byId('lastfmConnect').hidden = state.lastfm.connected;
-    byId('lastfmDisconnect').hidden = !state.lastfm.connected;
-    if (state.lastfm.available && focusedId === 'lastfmConnect' && state.lastfm.connected) byId('lastfmDisconnect').focus();
-    if (state.lastfm.available && focusedId === 'lastfmDisconnect' && !state.lastfm.connected) byId('lastfmConnect').focus();
     byId('preferences').hidden = false;
   }
 
@@ -93,9 +84,6 @@
   }
   for (const key of toggles) {
     byId(key).addEventListener('change', () => apply({ type: key, value: byId(key).checked }));
-  }
-  for (const key of ['lastfmConnect', 'lastfmDisconnect']) {
-    byId(key).addEventListener('click', () => apply({ type: key }));
   }
   const unsubscribe = bridge.onState((next) => {
     revision++;

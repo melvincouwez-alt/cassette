@@ -7,8 +7,6 @@
 // 'record' stores options, listeners and show() calls in notifyFake.built.
 // 'construct' uses the Electron constructor mock so tests can check that a closed gate prevents construction.
 //
-// Last.fm handles forced notifications before src/notify, so either mode observes them as construction while the notification preference is off.
-//
 // Vitest hoists vi.mock() within this file and resolves its paths relative to test/mocks/, hence ../../src/.
 //
 // Import this file before the modules it stands in for:

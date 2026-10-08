@@ -12,7 +12,8 @@ import {
 import { DESKTOP_ID } from "./identity";
 import { TITLEBAR_CSS } from "./elementaryCss";
 import { windowChromeOptions } from "./windowChrome";
-import { createHeaderbar, type Headerbar } from "./headerbar";
+import { createHeaderbar, HEADERBAR_HEIGHT_PX, type Headerbar } from "./headerbar";
+import { createSidePanel } from "./sidePanel";
 import { devProbeHidden, scheduleDevProbe } from "./devProbe";
 import fs from "fs";
 import path from "path";
@@ -56,15 +57,12 @@ import {
   showSettingsWindow,
 } from "./settingsWindow";
 import { initCommandBridge } from "./commandBridge";
-import { initControllerIPC, goBackIfPossible } from "./controllerIPC";
-import { CONTROLLER_RESET_CHANNEL } from "./controller";
 import {
   getService,
   allServices,
   isAllowedNavigationUrl,
 } from "./musicService";
 import { init as initNotifications } from "./integrations/notifications";
-import { init as initLastfm } from "./integrations/lastfm";
 import { cleanArtworkCache } from "./artwork";
 import {
   init as initWedgeDetector,
@@ -136,6 +134,9 @@ app.on("child-process-gone", (_event, details) => {
 });
 
 // --- Platform switches: must run before app.whenReady() ---
+// Chromium's HTTP cache has no size cap of its own, and streamed tracks filled
+// it past 1 GB. 256 MB still keeps artwork and page assets warm.
+app.commandLine.appendSwitch("disk-cache-size", String(256 * 1024 * 1024));
 if (process.platform === "linux") {
   app.commandLine.appendSwitch(
     "enable-features",
@@ -197,6 +198,13 @@ if (!gotLock) {
 let pendingItmsTarget: ItmsTarget | null = extractItmsUrlFromArgv(
   process.argv,
 );
+
+/** Navigate back only when the window has a previous history entry. */
+function goBackIfPossible(win: BrowserWindow): void {
+  if (win.webContents.navigationHistory.canGoBack()) {
+    win.webContents.navigationHistory.goBack();
+  }
+}
 
 function focusMainWindow(): void {
   if (!win) return;
@@ -605,7 +613,6 @@ function setupNavigationHandlers(win: BrowserWindow, player: Player): void {
   });
   win.webContents.on("did-start-navigation", (details) => {
     if (details.isMainFrame) {
-      win.webContents.send(CONTROLLER_RESET_CHANNEL);
       mainLog.debug("did-start-navigation:", details.url);
     }
   });
@@ -765,7 +772,6 @@ function setupContentHandlers(
             "notifications",
             () => initNotifications({ player, getMainWindow: () => win }),
           ],
-          ["lastfm", () => initLastfm({ player, getMainWindow: () => win })],
           [
             "mpris",
             () => {
@@ -844,7 +850,6 @@ if (gotLock) {
         }
         contents.send(channel, ...args);
       });
-      initControllerIPC(win);
       setGetMainWindowCallback(() => win);
       initServiceSwitch({
         getTray: () => appTray,
@@ -880,6 +885,7 @@ if (gotLock) {
           // headerbar.ts has already checked the sender is the header view.
           settings: () => showSettingsWindow(),
           player,
+          panel: createSidePanel(mainWin, player, HEADERBAR_HEIGHT_PX),
         });
       }
       scheduleDevProbe(win, winReady);

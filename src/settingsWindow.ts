@@ -18,6 +18,7 @@ import {
 } from "./settings";
 import { getThemeCss } from "./theme";
 import { liveWebContents } from "./utils";
+import { windowChromeOptions } from "./windowChrome";
 
 let settingsWindow: BrowserWindow | null = null;
 let mainWindow: BrowserWindow | null = null;
@@ -63,6 +64,7 @@ export function showSettingsWindow(): void {
     minHeight: 420,
     show: false,
     frame: true,
+    ...windowChromeOptions(),
     resizable: true,
     autoHideMenuBar: true,
     webPreferences: {

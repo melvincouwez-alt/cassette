@@ -30,7 +30,6 @@ function fixture(): SettingsState {
   return {
     musicService: 'music', startPage: 'new', zoomFactor: 1,
     closeToTray: false, notifications: true,
-    lastfm: { available: true, connected: false, enabled: false, username: '' },
     options: {
       musicService: [{ value: 'music', label: 'Apple Music' }, { value: 'classical', label: 'Apple Music Classical' }],
       startPage: [{ value: 'new', label: 'New' }],
@@ -206,18 +205,6 @@ describe('settings page', () => {
     h.element('startPage').fire('change');
     await settle();
     expect(h.apply).toHaveBeenCalledWith({ type: 'startPage', serviceId: 'music', value: 'new' });
-  });
-
-  it('renders Last.fm account text literally and hides unavailable controls', async () => {
-    const state = fixture();
-    state.lastfm = { available: true, connected: true, enabled: true, username: '<img src=x>' };
-    const h = harness(state);
-    await settle();
-    expect(h.element('lastfm-status').textContent).toContain('<img src=x>');
-    expect(h.element('lastfmConnect').hidden).toBe(true);
-    expect(h.element('lastfmDisconnect').hidden).toBe(false);
-    h.push({ ...state, lastfm: { ...state.lastfm, available: false } });
-    expect(h.element('lastfm').hidden).toBe(true);
   });
 
   it('unsubscribes on close and ignores later state updates', async () => {

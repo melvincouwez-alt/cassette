@@ -16,6 +16,8 @@ const ACTIONS: Record<HeaderAction, true> = {
   queue: true,
   lyrics: true,
   mute: true,
+  mini: true,
+  search: true,
 };
 
 function isAction(value: string): value is HeaderAction {

@@ -1,11 +1,10 @@
 {
   "name": "cassette",
   "productName": "Cassette",
-  "version": "0.1.2",
+  "version": "0.4.0",
   "description": "Apple Music for elementary OS. Based on Sidra by Martin Wimpress.",
   "main": "dist/main.js",
   "scripts": {
-    "prebuild": "node scripts/inject-lastfm-credentials.cjs",
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -38,10 +37,13 @@
     "appId": "io.github.melvincouwez.Cassette",
     "copyright": "Copyright (c) Martin Wimpress, melvincouwez-alt",
     "artifactName": "${name}_${version}_${arch}.${ext}",
+    "electronLanguages": [
+      "fr",
+      "en-US"
+    ],
     "asar": true,
     "asarUnpack": [
       "assets/icons/**",
-      "assets/lastfm-credentials.json",
       "assets/locales/about.json",
       "assets/locales/loading.json",
       "assets/locales/tray.json",
@@ -59,7 +61,10 @@
       "assets/windowChrome.css",
       "assets/headerbar.html",
       "assets/headerbar.css",
-      "assets/headerbar.js"
+      "assets/headerbar.js",
+      "assets/panel.html",
+      "assets/panel.css",
+      "assets/panel.js"
     ],
     "icon": "build/icon.png",
     "files": [

@@ -15,25 +15,11 @@ import {
 
 const configLog = log.scope('config');
 
-/** A play held for later Last.fm submission, with a timestamp in Unix seconds. */
-export interface PendingScrobble {
-  artist: string;
-  track: string;
-  timestamp: number;
-  album?: string;
-  durationSec?: number;
-  chosenByUser?: 0;
-}
-
 interface StoreSchema {
   storefront: string;
   language: string | null;
   'notifications.enabled': boolean;
   'closeToTray.enabled': boolean;
-  'lastfm.enabled': boolean;
-  'lastfm.sessionKey': string | null;
-  'lastfm.username': string | null;
-  'lastfm.pendingScrobbles': PendingScrobble[];
   startPage: MusicStartPageId | 'last';
   lastPageUrl: string;
   'classical.startPage': ClassicalStartPageId | 'last';
@@ -43,6 +29,9 @@ interface StoreSchema {
 }
 
 const store = new Conf<StoreSchema>();
+
+// Keys left by features Cassette dropped (Discord, Sidra themes, Last.fm).
+for (const key of ['discord', 'theme', 'lastfm']) store.delete(key);
 
 /** Reads a key, or the caller's default when the user has never set it. */
 function getConfigValue<K extends keyof StoreSchema>(key: K, defaultValue: StoreSchema[K]): StoreSchema[K] {
@@ -107,82 +96,6 @@ export function getCloseToTrayEnabled(): boolean {
 /** Persist `closeToTray.enabled` without applying the setting to running components. */
 export function setCloseToTrayEnabled(enabled: boolean): void {
   setConfigValue('closeToTray.enabled', enabled);
-}
-
-/** Read `lastfm.enabled`, defaulting to `false` when absent. */
-export function getLastfmEnabled(): boolean {
-  return getConfigValue('lastfm.enabled', false);
-}
-
-/** Persist `lastfm.enabled` without applying the setting to running components. */
-export function setLastfmEnabled(enabled: boolean): void {
-  setConfigValue('lastfm.enabled', enabled);
-}
-
-/** Read `lastfm.sessionKey`, returning undefined when the key is absent. */
-export function getLastfmSessionKey(): string | null | undefined {
-  return getConfigValueOptional('lastfm.sessionKey');
-}
-
-/** Read `lastfm.username`, returning undefined when the key is absent. */
-export function getLastfmUsername(): string | null | undefined {
-  return getConfigValueOptional('lastfm.username');
-}
-
-/** Store the Last.fm session and username without logging the session key. */
-export function setLastfmSession(sessionKey: string, username: string): void {
-  store.set('lastfm.sessionKey', sessionKey);
-  store.set('lastfm.username', username);
-  configLog.info('lastfm session set for user:', username);
-}
-
-/** Clear Last.fm credentials without changing the enabled preference or pending queue. */
-export function clearLastfmSession(): void {
-  store.set('lastfm.sessionKey', null);
-  store.set('lastfm.username', null);
-  configLog.info('lastfm session cleared');
-}
-
-/**
- * Validate every stored field because one malformed play can invalidate a
- * Last.fm batch. Timestamps and durations match the integration's positive
- * whole seconds. Reject future timestamps because Last.fm can ignore them in a
- * successful response, after which the queue drops them.
- */
-function isPendingScrobble(value: unknown): value is PendingScrobble {
-  if (typeof value !== 'object' || value === null) return false;
-  const entry = value as Partial<PendingScrobble>;
-  return typeof entry.artist === 'string' && entry.artist.length > 0
-    && typeof entry.track === 'string' && entry.track.length > 0
-    && typeof entry.timestamp === 'number'
-    && Number.isInteger(entry.timestamp) && entry.timestamp > 0
-    && entry.timestamp <= Math.floor(Date.now() / 1000)
-    && (entry.album === undefined || typeof entry.album === 'string')
-    && (entry.durationSec === undefined
-      || (typeof entry.durationSec === 'number'
-        && Number.isInteger(entry.durationSec) && entry.durationSec > 0))
-    && (entry.chosenByUser === undefined || entry.chosenByUser === 0);
-}
-
-/** Read pending plays and discard malformed entries without logging listening history. */
-export function getPendingScrobbles(): PendingScrobble[] {
-  const stored: unknown = getConfigValue('lastfm.pendingScrobbles', []);
-  if (!Array.isArray(stored)) {
-    configLog.warn('lastfm.pendingScrobbles is not an array - discarding');
-    return [];
-  }
-  const entries = stored.filter(isPendingScrobble);
-  if (entries.length !== stored.length) {
-    // Never log the dropped entries: track titles are the user's listening history.
-    configLog.warn('lastfm.pendingScrobbles dropped malformed entries:', stored.length - entries.length);
-  }
-  return entries;
-}
-
-/** Replace the pending queue and log its length, not its contents. */
-export function setPendingScrobbles(entries: PendingScrobble[]): void {
-  store.set('lastfm.pendingScrobbles', entries);
-  configLog.info('lastfm.pendingScrobbles set, queued:', entries.length);
 }
 
 /** Read `lastPageUrl`, returning undefined when the key is absent. */

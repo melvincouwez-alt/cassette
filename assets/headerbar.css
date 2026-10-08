@@ -146,6 +146,13 @@ button svg .wave { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-l
 @media (max-width: 760px) { .time { display: none; } #art { display: none; } #volume { display: none; } }
 @media (max-width: 600px) { .transport #previous, .transport #next { display: none; } }
 
+/* Mini player: the window is the bar alone, so it keeps the transport, the
+   artwork and the track, and drops navigation, side panels and settings. */
+body.mini #start > .group:first-child, body.mini .extra, body.mini #search, body.mini #settings, body.mini .volume { display: none; }
+body.mini .transport #previous, body.mini .transport #next { display: grid; }
+body.mini #art { display: block; }
+body.mini #center { flex: 1 1 auto; }
+
 /* Start-up: the page area stays on the window colour, with elementary's
    spinner, until Apple's page has drawn; then it fades out. */
 #cover {

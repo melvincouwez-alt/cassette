@@ -11,7 +11,6 @@ import { allServices } from "../src/musicService";
 describe("settings labels", () => {
   it("shares the settings label between navigation and the tray", () => {
     expect(getNavigationStrings().settings).toBe(getTrayStrings().settings);
-    expect(getTrayStrings().lastfmConnected).toContain("{name}");
   });
 });
 

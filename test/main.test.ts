@@ -26,6 +26,7 @@ const bootstrap = vi.hoisted(() => {
     send: vi.fn(),
     reload: vi.fn(),
     navigationHistory: {
+      canGoBack: vi.fn(() => true),
       goBack: vi.fn(),
       goForward: vi.fn(),
     },
@@ -64,7 +65,6 @@ const bootstrap = vi.hoisted(() => {
 
   const integrations = {
     notifications: vi.fn(),
-    lastfm: vi.fn(),
     wedgeDetector: vi.fn(),
     trayState: vi.fn(() => vi.fn()),
   };
@@ -216,10 +216,6 @@ vi.mock("../src/settingsWindow", () => ({
 }));
 
 vi.mock("../src/commandBridge", () => ({ initCommandBridge: vi.fn() }));
-vi.mock("../src/controllerIPC", () => ({
-  initControllerIPC: vi.fn(),
-  goBackIfPossible: vi.fn(),
-}));
 vi.mock("../src/aboutWindow", () => ({ showAboutWindow: vi.fn() }));
 
 vi.mock("../src/musicService", () => ({
@@ -236,9 +232,6 @@ vi.mock("../src/musicService", () => ({
 
 vi.mock("../src/integrations/notifications", () => ({
   init: bootstrap.integrations.notifications,
-}));
-vi.mock("../src/integrations/lastfm", () => ({
-  init: bootstrap.integrations.lastfm,
 }));
 vi.mock("../src/artwork", () => ({ cleanArtworkCache: vi.fn() }));
 vi.mock("../src/wedgeDetector", () => ({
@@ -360,7 +353,6 @@ describe("main bootstrap", () => {
     await didFinishLoad?.();
 
     expect(bootstrap.integrations.notifications).toHaveBeenCalledOnce();
-    expect(bootstrap.integrations.lastfm).toHaveBeenCalledOnce();
     expect(bootstrap.integrations.wedgeDetector).toHaveBeenCalledOnce();
     expect(bootstrap.integrations.trayState).toHaveBeenCalledOnce();
     for (const initialise of Object.values(bootstrap.integrations)) {
@@ -374,21 +366,20 @@ describe("main bootstrap", () => {
     );
   });
 
-  it("initialises controller IPC once and reuses guarded back navigation", async () => {
-    const { goBackIfPossible, initControllerIPC } = await import(
-      "../src/controllerIPC"
-    );
+  it("goes back on nav:back only when history allows it", async () => {
     await startMain();
-
-    expect(initControllerIPC).toHaveBeenCalledOnce();
-    expect(initControllerIPC).toHaveBeenCalledWith(bootstrap.mainWindow);
+    const { navigationHistory } = bootstrap.webContents;
 
     const backCall = bootstrap.ipcOn.mock.calls.find(
       ([channel]) => channel === "nav:back",
     );
     expect(backCall).toBeDefined();
     backCall?.[1]();
-    expect(goBackIfPossible).toHaveBeenCalledWith(bootstrap.mainWindow);
+    expect(navigationHistory.goBack).toHaveBeenCalledOnce();
+
+    navigationHistory.canGoBack.mockReturnValueOnce(false);
+    backCall?.[1]();
+    expect(navigationHistory.goBack).toHaveBeenCalledOnce();
   });
 
   it("accepts hook readiness only from the current main frame and document generation", async () => {
@@ -612,35 +603,6 @@ describe("main bootstrap", () => {
       "https://music.apple.com/gb/new",
     );
     expect(notifySettingsChanged).toHaveBeenCalledOnce();
-  });
-
-  it("resets controller state only for main-frame navigation", async () => {
-    await startMain();
-    const didStartNavigation = bootstrap.mainWebListeners.get(
-      "did-start-navigation",
-    );
-    expect(didStartNavigation).toBeDefined();
-
-    didStartNavigation?.({
-      url: "https://music.apple.com/gb/new#dialog",
-      isSameDocument: true,
-      isMainFrame: true,
-    });
-    expect(bootstrap.webContents.send).toHaveBeenCalledWith("controller:reset");
-
-    didStartNavigation?.({
-      url: "https://music.apple.com/gb/album/example",
-      isSameDocument: false,
-      isMainFrame: true,
-    });
-    expect(bootstrap.webContents.send).toHaveBeenCalledTimes(2);
-
-    didStartNavigation?.({
-      url: "https://music.apple.com/gb/iframe",
-      isSameDocument: false,
-      isMainFrame: false,
-    });
-    expect(bootstrap.webContents.send).toHaveBeenCalledTimes(2);
   });
 
   it("resets playback only after a committed document navigation", async () => {

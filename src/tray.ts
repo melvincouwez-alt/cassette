@@ -17,13 +17,9 @@ import {
 } from "./player";
 import {
   getNotificationsEnabled,
-  getLastfmEnabled,
-  getLastfmSessionKey,
-  getLastfmUsername,
   getCloseToTrayEnabled,
 } from "./config";
 import { showAboutWindow } from "./aboutWindow";
-import { isConfigured as isLastfmConfigured } from "./integrations/lastfm";
 import { applySettingsAction, getSettingsState } from "./settings";
 import { downloadArtwork } from "./artwork";
 import { sendCommand } from "./commandBridge";
@@ -40,7 +36,6 @@ export type MenuIconKey =
   | "player"
   | "start-page"
   | "notifications"
-  | "lastfm"
   | "zoom"
   | "quit"
   | "artist"
@@ -61,7 +56,6 @@ const menuIconFileMap: Record<MenuIconKey, string> = {
   player: "headphones",
   "start-page": "music",
   notifications: "bell",
-  lastfm: "lastfm",
   zoom: "expand",
   quit: "eject",
   artist: "star",
@@ -233,9 +227,8 @@ function buildToggleSubmenu(
   label: string,
   iconKey: MenuIconKey,
   enabled: boolean,
-  type: "notifications" | "closeToTray" | "lastfmEnabled",
+  type: "notifications" | "closeToTray",
   ctx: SubmenuContext,
-  extraItems: Electron.MenuItemConstructorOptions[] = [],
 ): Electron.MenuItemConstructorOptions {
   const icon = getMenuIcon(iconKey);
   return {
@@ -250,7 +243,6 @@ function buildToggleSubmenu(
           applySettingsAction({ type, value });
         },
       })),
-      ...extraItems,
     ],
   };
 }
@@ -276,43 +268,6 @@ function buildCloseToTraySubmenu(
     getCloseToTrayEnabled(),
     "closeToTray",
     ctx,
-  );
-}
-
-function buildLastfmSubmenu(
-  ctx: SubmenuContext,
-): Electron.MenuItemConstructorOptions {
-  if (!getLastfmSessionKey()) {
-    const icon = getMenuIcon("lastfm");
-    return {
-      label: "Last.fm",
-      ...(icon ? { icon } : {}),
-      submenu: [
-        {
-          label: ctx.strings.lastfmConnect,
-          click: () => {
-            applySettingsAction({ type: "lastfmConnect" });
-          },
-        },
-      ],
-    };
-  }
-  return buildToggleSubmenu(
-    "Last.fm",
-    "lastfm",
-    getLastfmEnabled(),
-    "lastfmEnabled",
-    ctx,
-    [
-      { type: "separator" },
-      { label: `✓ ${getLastfmUsername()}`, enabled: false },
-      {
-        label: ctx.strings.lastfmDisconnect,
-        click: () => {
-          applySettingsAction({ type: "lastfmDisconnect" });
-        },
-      },
-    ],
   );
 }
 
@@ -409,7 +364,6 @@ function buildContextMenu(tray: Tray): Menu {
     buildStartPageSubmenu(ctx),
     buildCloseToTraySubmenu(ctx),
     buildNotificationsSubmenu(ctx),
-    ...(isLastfmConfigured() ? [buildLastfmSubmenu(ctx)] : []),
     buildZoomSubmenu(ctx),
     { type: "separator" },
     {

@@ -30,6 +30,7 @@ import type {
 } from "./player";
 import { sendCommand } from "./commandBridge";
 import { devCapture } from "./devProbe";
+import type { SidePanel } from "./sidePanel";
 
 const headerLog = log.scope("headerbar");
 
@@ -67,13 +68,11 @@ export interface HeaderbarHandlers {
   forward: () => void;
   settings: () => void;
   player: Player;
+  panel: SidePanel;
 }
 
-/** Apple's own buttons, left in the hidden player bar, that open its side panels. */
-const APPLE_PANEL_BUTTON: Record<"queue" | "lyrics", string> = {
-  queue: ".up-next-queue__button",
-  lyrics: '.player-bar button[class*="lyrics"]',
-};
+/** Width of the window as a mini player; its height is the bar's. */
+const MINI_WIDTH_PX = 520;
 
 /** Position updates to the header bar at most this often. */
 const POSITION_INTERVAL_MS = 500;
@@ -122,6 +121,26 @@ export function createHeaderbar(
   let volume = 1;
   // Level restored when the mute button is pressed again.
   let unmutedVolume = 1;
+  // Mini player: the window shrinks to the bar, which already carries the
+  // transport, the track and the scrubber; the size before is restored after.
+  let mini = false;
+  let fullSize: [number, number] | null = null;
+  const toggleMini = (): void => {
+    if (win.isDestroyed()) return;
+    mini = !mini;
+    if (mini) {
+      handlers.panel.close();
+      if (win.isFullScreen()) win.setFullScreen(false);
+      if (win.isMaximized()) win.unmaximize();
+      fullSize = win.getContentSize() as [number, number];
+      win.setResizable(false);
+      win.setContentSize(MINI_WIDTH_PX, HEADERBAR_HEIGHT_PX);
+    } else {
+      win.setResizable(true);
+      if (fullSize) win.setContentSize(fullSize[0], fullSize[1]);
+    }
+    push();
+  };
 
   const layout = (): void => {
     if (win.isDestroyed()) return;
@@ -150,6 +169,8 @@ export function createHeaderbar(
       shuffle,
       repeat,
       volume,
+      mini,
+      panel: handlers.panel.current(),
     };
   };
 
@@ -185,17 +206,6 @@ export function createHeaderbar(
     measureTimer = setTimeout(measureInsets, 100);
   };
 
-  // Up Next and Lyrics stay Apple's side panels; their buttons sit in the
-  // player bar, hidden on Linux, and a click on a hidden button still works.
-  const openApplePanel = (panel: "queue" | "lyrics"): void => {
-    const contents = win.isDestroyed() ? null : win.webContents;
-    if (!contents || contents.isDestroyed()) return;
-    const selector = JSON.stringify(APPLE_PANEL_BUTTON[panel]);
-    contents
-      .executeJavaScript(`document.querySelector(${selector})?.click(), true`)
-      .catch(() => headerLog.warn(`could not open Apple's ${panel} panel`));
-  };
-
   const actions: Record<HeaderAction, (event: IpcMainEvent) => void> = {
     back: () => handlers.back(),
     forward: () => handlers.forward(),
@@ -206,9 +216,11 @@ export function createHeaderbar(
     shuffle: () => sendCommand("player:setShuffle", shuffle ? 0 : 1),
     // none -> all -> one -> none, as elementary Music cycles it
     repeat: () => sendCommand("player:setRepeat", repeat === 0 ? 2 : repeat === 2 ? 1 : 0),
-    queue: () => openApplePanel("queue"),
-    lyrics: () => openApplePanel("lyrics"),
+    queue: () => handlers.panel.toggle("queue"),
+    lyrics: () => handlers.panel.toggle("lyrics"),
+    search: () => handlers.panel.toggle("search"),
     mute: () => sendCommand("player:setVolume", volume > 0 ? 0 : unmutedVolume),
+    mini: toggleMini,
   };
 
   const onSeek = (event: IpcMainEvent, fraction: unknown): void => {
@@ -324,6 +336,7 @@ export function createHeaderbar(
     if (measureTimer) clearTimeout(measureTimer);
   });
 
+  handlers.panel.onChange(push);
   layout();
   devCapture(view.webContents, "cover", 1500);
   void view.webContents

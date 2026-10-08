@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self'; img-src https://*.mzstatic.com">
+<link rel="stylesheet" href="panel.css">
+</head>
+<body>
+<nav id="tabs" role="tablist" aria-label="Panneau">
+  <button role="tab" data-tab="lyrics">Paroles</button>
+  <button role="tab" data-tab="queue">À suivre</button>
+  <button role="tab" data-tab="search">Recherche</button>
+  <button id="close" title="Fermer le panneau" aria-label="Fermer le panneau"></button>
+</nav>
+<section id="lyrics" role="tabpanel" hidden>
+  <h2 id="lyrics-track"></h2>
+  <p class="status" id="lyrics-status"></p>
+  <div id="lyrics-lines"></div>
+</section>
+<section id="queue" role="tabpanel" hidden>
+  <p class="status" id="queue-status"></p>
+  <ol id="queue-list" class="rows"></ol>
+</section>
+<section id="search" role="tabpanel" hidden>
+  <form id="search-form" role="search">
+    <input id="search-term" type="search" placeholder="Morceaux, albums, artistes, playlists" aria-label="Rechercher dans Apple Music" autocomplete="off" maxlength="200">
+  </form>
+  <p class="status" id="search-status"></p>
+  <ol id="search-list" class="rows"></ol>
+</section>
+<script src="panel.js"></script>
+</body>
+</html>

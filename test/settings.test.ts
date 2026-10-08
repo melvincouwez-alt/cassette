@@ -3,12 +3,6 @@ import { Conf } from 'electron-conf/main';
 import type { BrowserWindow } from 'electron';
 import * as config from '../src/config';
 import { applySettingsAction, getSettingsState, initSettingsActions, notifySettingsChanged, subscribeSettingsChanges } from '../src/settings';
-import * as lastfm from '../src/integrations/lastfm';
-
-vi.mock('../src/integrations/lastfm', () => ({
-  isConfigured: vi.fn(() => true), enable: vi.fn(), disable: vi.fn(), startAuth: vi.fn(), disconnect: vi.fn(),
-  setStateChangedCallback: vi.fn(),
-}));
 
 const applyZoom = vi.fn();
 const refreshTray = vi.fn();
@@ -19,18 +13,13 @@ let dispose: () => void;
 beforeEach(() => {
   (Conf as unknown as { _data: Map<string, unknown> })._data.clear();
   vi.clearAllMocks();
-  vi.mocked(lastfm.isConfigured).mockReturnValue(true);
   dispose = initSettingsActions({ getMainWindow: () => window as unknown as BrowserWindow, applyZoom, switchService, refreshTray });
 });
 afterEach(() => dispose());
 
 describe('settings actions', () => {
-  it('reads defaults and excludes account credentials from state', () => {
-    config.setLastfmSession('private-session', 'listener');
-    const state = getSettingsState();
-    expect(state).toMatchObject({ musicService: 'music', startPage: 'new', zoomFactor: 1 });
-    expect(state.lastfm).toEqual({ available: true, connected: true, enabled: false, username: 'listener' });
-    expect(JSON.stringify(state)).not.toContain('private-session');
+  it('reads defaults', () => {
+    expect(getSettingsState()).toMatchObject({ musicService: 'music', startPage: 'new', zoomFactor: 1 });
   });
 
   it('persists before runtime effects and publishes the new state', () => {
@@ -76,32 +65,5 @@ describe('settings actions', () => {
   ])('rejects unavailable or malformed actions: %j', action => {
     expect(() => applySettingsAction(action)).toThrow('Invalid settings action');
     expect(refreshTray).not.toHaveBeenCalled();
-  });
-
-  it('gates Last.fm and keeps its setter before authentication', () => {
-    vi.mocked(lastfm.isConfigured).mockReturnValue(false);
-    expect(() => applySettingsAction({ type: 'lastfmConnect' })).toThrow();
-    vi.mocked(lastfm.isConfigured).mockReturnValue(true);
-    vi.mocked(lastfm.startAuth).mockImplementationOnce(() => expect(config.getLastfmEnabled()).toBe(true));
-    applySettingsAction({ type: 'lastfmConnect' });
-    expect(lastfm.startAuth).toHaveBeenCalledOnce();
-    config.setLastfmSession('key', 'listener');
-    applySettingsAction({ type: 'lastfmEnabled', value: false });
-    expect(lastfm.disable).toHaveBeenCalledOnce();
-    applySettingsAction({ type: 'lastfmDisconnect' });
-    expect(lastfm.disconnect).toHaveBeenCalledOnce();
-  });
-
-  it('publishes asynchronous Last.fm changes without a tray and stops on teardown', () => {
-    const listener = vi.fn();
-    subscribeSettingsChanges(listener);
-    const callback = vi.mocked(lastfm.setStateChangedCallback).mock.calls.at(-1)?.[0];
-    config.setLastfmSession('key', 'listener');
-    callback?.();
-    expect(listener).toHaveBeenCalledWith(expect.objectContaining({ lastfm: expect.objectContaining({ connected: true }) }));
-    dispose();
-    expect(lastfm.setStateChangedCallback).toHaveBeenLastCalledWith(null);
-    notifySettingsChanged();
-    expect(listener).toHaveBeenCalledOnce();
   });
 });

@@ -44,14 +44,6 @@ export const QUIT_TEXT: Record<string, string> = trayData.QUIT_TEXT;
 export const NOTIFICATIONS_TEXT: Record<string, string> = trayData.NOTIFICATIONS_TEXT;
 /** Translations for unknown artist, keyed by BCP 47 language tag. */
 export const UNKNOWN_ARTIST_TEXT: Record<string, string> = trayData.UNKNOWN_ARTIST_TEXT;
-/** Translations for lastfm connect, keyed by BCP 47 language tag. */
-export const LASTFM_CONNECT_TEXT: Record<string, string> = trayData.LASTFM_CONNECT_TEXT;
-/** Translations for lastfm connected, keyed by BCP 47 language tag. */
-export const LASTFM_CONNECTED_TEXT: Record<string, string> = trayData.LASTFM_CONNECTED_TEXT;
-/** Translations for lastfm connect failed, keyed by BCP 47 language tag. */
-export const LASTFM_CONNECT_FAILED_TEXT: Record<string, string> = trayData.LASTFM_CONNECT_FAILED_TEXT;
-/** Translations for lastfm disconnect, keyed by BCP 47 language tag. */
-export const LASTFM_DISCONNECT_TEXT: Record<string, string> = trayData.LASTFM_DISCONNECT_TEXT;
 /** Translations for start page, keyed by BCP 47 language tag. */
 export const START_PAGE_TEXT: Record<string, string> = trayData.START_PAGE_TEXT;
 /** Translations for start page home, keyed by BCP 47 language tag. */
@@ -212,14 +204,10 @@ export interface TrayStrings {
   settings: string;
   integrations: string;
   settingsError: string;
-  lastfm: string;
-  lastfmConnected: string;
   about: string;
   quit: string;
   notifications: string;
   player: string;
-  lastfmConnect: string;
-  lastfmDisconnect: string;
   startPage: string;
   startPageHome: string;
   startPageNew: string;
@@ -259,14 +247,10 @@ const TRAY_TEXT: Record<keyof TrayStrings, Record<string, string>> = {
   settings: SETTINGS_TEXT,
   integrations: INTEGRATIONS_TEXT,
   settingsError: SETTINGS_ERROR_TEXT,
-  lastfm: { en: 'Last.fm' },
-  lastfmConnected: LASTFM_CONNECTED_TEXT,
   about: ABOUT_TEXT,
   quit: QUIT_TEXT,
   notifications: NOTIFICATIONS_TEXT,
   player: PLAYER_TEXT,
-  lastfmConnect: LASTFM_CONNECT_TEXT,
-  lastfmDisconnect: LASTFM_DISCONNECT_TEXT,
   startPage: START_PAGE_TEXT,
   startPageHome: START_PAGE_HOME_TEXT,
   startPageNew: START_PAGE_NEW_TEXT,
@@ -322,17 +306,6 @@ export function getTrayStrings(): TrayStrings {
     strings[key] = NAMED_TRAY_KEYS.has(key) ? value.replace('{name}', productName) : value;
   }
   return strings;
-}
-
-/** Format the connected Last.fm account label. */
-export function getLastfmConnectedText(name: string): string {
-  const langs = getSystemLanguages();
-  return getLocalizedString(LASTFM_CONNECTED_TEXT, langs).replace('{name}', name);
-}
-
-/** Resolve the Last.fm connection failure message. */
-export function getLastfmConnectFailedText(): string {
-  return getLocalizedString(LASTFM_CONNECT_FAILED_TEXT, getSystemLanguages());
 }
 
 /**

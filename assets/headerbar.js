@@ -12,6 +12,8 @@
   var ICONS = {
     back: { d: "M10.3 2.6 11.4 3.7 7.1 8l4.3 4.3-1.1 1.1L4.9 8z" },
     forward: { d: "M5.7 2.6 4.6 3.7 8.9 8l-4.3 4.3 1.1 1.1L11.1 8z" },
+    mini: { stroke: true, d: "M1.75 2.75h12.5v10.5H1.75zM8.25 8.25h4v3h-4z" },
+    search: { stroke: true, d: "M6.75 2.25a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9zM10 10l3.75 3.75" },
     settings: { d: "M2 3.5h12V5H2zm0 3.75h12v1.5H2zM2 11h12v1.5H2z" },
     play: { d: "M5 3.2v9.6c0 .6.7 1 1.2.6l7.2-4.8c.4-.3.4-.9 0-1.2L6.2 2.6C5.7 2.2 5 2.6 5 3.2z" },
     pause: { d: "M4.5 3h2.2c.3 0 .5.2.5.5v9c0 .3-.2.5-.5.5H4.5a.5.5 0 0 1-.5-.5v-9c0-.3.2-.5.5-.5zm4.8 0h2.2c.3 0 .5.2.5.5v9c0 .3-.2.5-.5.5H9.3a.5.5 0 0 1-.5-.5v-9c0-.3.2-.5.5-.5z" },
@@ -152,6 +154,12 @@
     root.setProperty("--inset-start", px(state.insetStart));
     root.setProperty("--inset-end", px(state.insetEnd));
     document.body.classList.toggle("loading", !!state.loading);
+    document.body.classList.toggle("mini", !!state.mini);
+    $("mini").classList.toggle("active", !!state.mini);
+    ["lyrics", "queue", "search"].forEach(function (id) {
+      $(id).classList.toggle("active", state.panel === id);
+    });
+    $("mini").title = state.mini ? "Revenir à la fenêtre complète" : "Mini-lecteur";
 
     var track = state.track;
     $("nowplaying").hidden = !track;

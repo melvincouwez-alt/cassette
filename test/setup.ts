@@ -131,6 +131,9 @@ vi.mock("electron-conf/main", () => {
       set(key: string, value: unknown) {
         data.set(key, value);
       }
+      delete(key: string) {
+        data.delete(key);
+      }
       clear() {
         data.clear();
       }

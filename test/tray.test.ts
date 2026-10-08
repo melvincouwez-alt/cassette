@@ -13,12 +13,6 @@ import type { TrayStrings } from "../src/i18n";
 vi.mock("../src/config", () => ({
   getNotificationsEnabled: () => true,
   setNotificationsEnabled: vi.fn(),
-  getLastfmEnabled: vi.fn(() => false),
-  setLastfmEnabled: vi.fn(),
-  getLastfmSessionKey: vi.fn(() => null),
-  getLastfmUsername: vi.fn(() => null),
-  setLastfmSession: vi.fn(),
-  clearLastfmSession: vi.fn(),
   getStartPage: () => "new",
   setStartPage: vi.fn(),
   getZoomFactor: () => 1.0,
@@ -38,14 +32,10 @@ const mockTrayStrings: TrayStrings = {
   settings: "Settings",
   integrations: "Integrations",
   settingsError: "Could not apply this setting.",
-  lastfm: "Last.fm",
-  lastfmConnected: "Connected",
   about: "About Sidra",
   quit: "Quit",
   notifications: "Notifications",
   player: "Player",
-  lastfmConnect: "Connect to Last.fm…",
-  lastfmDisconnect: "Disconnect",
   startPage: "Start Page",
   startPageHome: "Home",
   startPageNew: "New",
@@ -101,15 +91,6 @@ vi.mock("../src/i18n", () => ({
   }),
 }));
 
-vi.mock("../src/integrations/lastfm", () => ({
-  enable: vi.fn(),
-  disable: vi.fn(),
-  startAuth: vi.fn(),
-  setStateChangedCallback: vi.fn(),
-  disconnect: vi.fn(),
-  isConfigured: vi.fn(() => false),
-}));
-
 vi.mock("../src/artwork", () => ({
   downloadArtwork: vi.fn(() => Promise.resolve("/tmp/downloaded-artwork.png")),
 }));
@@ -141,19 +122,10 @@ import {
   getMusicService,
   setMusicService,
   getClassicalStartPage,
-  getLastfmEnabled,
-  setLastfmEnabled,
-  getLastfmSessionKey,
-  getLastfmUsername,
 } from "../src/config";
 import { downloadArtwork } from "../src/artwork";
 import { PlaybackState } from "../src/player";
 import type { NowPlayingPayload, PlayerEvents } from "../src/player";
-import {
-  startAuth as startLastfmAuth,
-  disconnect as disconnectLastfm,
-  isConfigured as isLastfmConfigured,
-} from "../src/integrations/lastfm";
 import { FakePlayer } from "./mocks/player";
 import { setPlatform, restorePlatform } from "./mocks/platform";
 import {
@@ -195,10 +167,6 @@ function resetTrayMocks(): void {
   vi.mocked(getMusicService).mockReturnValue("music");
   vi.mocked(getClassicalStartPage).mockReturnValue("home");
   vi.mocked(getCloseToTrayEnabled).mockReturnValue(false);
-  vi.mocked(getLastfmEnabled).mockReturnValue(false);
-  vi.mocked(getLastfmSessionKey).mockReturnValue(null);
-  vi.mocked(getLastfmUsername).mockReturnValue(null);
-  vi.mocked(isLastfmConfigured).mockReturnValue(false);
   vi.mocked(nativeImage.createFromPath).mockClear();
   cancelTrayRebuild();
   setGetMainWindowCallback(() => null);
@@ -497,7 +465,6 @@ describe("createTray - menu template inspection", () => {
         isPlaying: false,
         volume: 0,
       });
-      vi.mocked(isLastfmConfigured).mockReturnValue(true);
       createTray();
       const parents = getLastTemplate()
         .filter((item) => item.submenu !== undefined)
@@ -507,7 +474,6 @@ describe("createTray - menu template inspection", () => {
         "Start Page",
         "Close to tray",
         "Notifications",
-        "Last.fm",
         "Zoom",
       ]);
     });
@@ -746,74 +712,6 @@ describe("createTray - menu template inspection", () => {
         expect(entry, `${page.id} should have a menu entry`).toBeDefined();
         expect(entry!.type).toBe("radio");
       }
-    });
-  });
-
-  describe("Last.fm submenu", () => {
-    beforeEach(() => {
-      setPlatform("linux");
-      vi.mocked(isLastfmConfigured).mockReturnValue(true);
-      vi.mocked(startLastfmAuth).mockClear();
-      vi.mocked(disconnectLastfm).mockClear();
-      vi.mocked(setLastfmEnabled).mockClear();
-    });
-
-    /** Puts the config mocks in the state left by a completed auth flow. */
-    function linkAccount(username = "martin"): void {
-      vi.mocked(getLastfmSessionKey).mockReturnValue("session-key");
-      vi.mocked(getLastfmUsername).mockReturnValue(username);
-      vi.mocked(getLastfmEnabled).mockReturnValue(true);
-    }
-
-    function lastfmItem(): Electron.MenuItemConstructorOptions {
-      createTray();
-      const item = findItem(getLastTemplate(), "Last.fm");
-      expect(item).toBeDefined();
-      return item!;
-    }
-
-    function lastfmSubmenu(): Electron.MenuItemConstructorOptions[] {
-      return lastfmItem().submenu as Electron.MenuItemConstructorOptions[];
-    }
-
-    it("offers a single connect action when no account is linked", () => {
-      expect(lastfmSubmenu().map((item) => item.label)).toEqual([
-        "Connect to Last.fm…",
-      ]);
-    });
-
-    it("starts the auth flow when connect is clicked", () => {
-      const connectItem = lastfmSubmenu()[0];
-      (connectItem.click as Function)();
-      expect(vi.mocked(setLastfmEnabled)).toHaveBeenCalledWith(true);
-      expect(vi.mocked(startLastfmAuth)).toHaveBeenCalled();
-    });
-
-    it("reports the scrobbling state in the parent label when connected", () => {
-      linkAccount();
-      expect(lastfmItem().label).toBe("Last.fm: On");
-    });
-
-    it("names the linked account in a row of its own", () => {
-      linkAccount("wimpy");
-      const account = findItem(lastfmSubmenu(), "wimpy");
-      expect(account).toBeDefined();
-      expect(account!.label).toBe("✓ wimpy");
-      expect(account!.enabled).toBe(false);
-    });
-
-    it("disconnects the account when the disconnect item is clicked", () => {
-      linkAccount();
-      const disconnectItem = findItem(lastfmSubmenu(), "Disconnect");
-      expect(disconnectItem).toBeDefined();
-      (disconnectItem!.click as Function)();
-      expect(vi.mocked(disconnectLastfm)).toHaveBeenCalled();
-    });
-
-    it("omits the Last.fm item entirely when no credentials are configured", () => {
-      vi.mocked(isLastfmConfigured).mockReturnValue(false);
-      createTray();
-      expect(findItem(getLastTemplate(), "Last.fm")).toBeUndefined();
     });
   });
 

@@ -1,5 +1,7 @@
 // Contract between src/headerbar.ts, its preload and assets/headerbar.js.
 
+import type { PanelTab } from "./panelTypes";
+
 /** Clicks the header bar can report. The window buttons are the frame's own. */
 export type HeaderAction =
   | "back"
@@ -12,7 +14,9 @@ export type HeaderAction =
   | "repeat"
   | "queue"
   | "lyrics"
-  | "mute";
+  | "mute"
+  | "mini"
+  | "search";
 
 /** The track the header bar shows, from the player's validated payload. */
 export interface HeaderTrack {
@@ -41,4 +45,8 @@ export interface HeaderState {
   repeat: number;
   /** Cassette's own volume (MusicKit's), 0 to 1. */
   volume: number;
+  /** The window is shrunk to the bar alone, as a mini player. */
+  mini: boolean;
+  /** The side panel tab showing, or null when the panel is closed. */
+  panel: PanelTab | null;
 }
