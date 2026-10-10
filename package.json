@@ -2,7 +2,7 @@
   "name": "cassette",
   "productName": "Cassette",
   "version": "0.4.1",
-  "description": "Écouter Apple Music sur elementary OS. D'après Sidra de Martin Wimpress.",
+  "description": "Lecteur Apple Music pour elementary OS, dérivé de Sidra de Martin Wimpress.",
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc",

@@ -43,11 +43,7 @@
     <release version="0.4.0" date="2026-10-08">
       <description>
         <p>A side panel of Cassette's own replaces Apple's: time-synced lyrics that follow the song, the queue with a click to jump to a track, and search, which plays a song or opens an album, artist or playlist.</p>
-        <p xml:lang="fr">Un panneau latéral propre à Cassette remplace celui d’Apple : paroles synchronisées qui suivent le morceau, file d’attente (un clic lance le morceau choisi) et recherche, qui lance un morceau ou ouvre un album, un artiste ou une playlist.</p>
-      </description>
-    </release>
-    <release version="0.2.0" date="2026-10-08">
-      <description>
+        <p xml:lang="fr">Un panneau latéral propre à Cassette remplace celui d’Apple : paroles synchronisées qui suivent le morceau, file d’attente (un clic lance le morceau choisi) et recherche (un clic lance un morceau ou ouvre un album, un artiste ou une playlist).</p>
         <p>Mini player: the window shrinks to its header bar, with the artwork, the track and the playback controls.</p>
         <p xml:lang="fr">Mini-lecteur : la fenêtre se réduit à sa barre d’en-tête, avec la pochette, le morceau et les commandes de lecture.</p>
         <p>The Settings window has the raspberry header bar of the main window.</p>
@@ -61,13 +57,13 @@
     <release version="0.1.2" date="2026-10-04">
       <description>
         <p>Covalence is now called Boomerang: texts and keywords follow.</p>
-        <p xml:lang="fr">Covalence s’appelle désormais Boomerang : les textes et les mots-clés suivent.</p>
+        <p xml:lang="fr">Covalence s’appelle désormais Boomerang : les textes et les mots-clés sont mis à jour.</p>
       </description>
     </release>
     <release version="0.1.1" date="2026-10-04">
       <description>
         <p>Own repository and releases, AppStream data, fuller credits and licence notices, links in the About window.</p>
-        <p xml:lang="fr">Dépôt et versions propres, données AppStream, crédits et licences complétés, liens dans la fenêtre À propos.</p>
+        <p xml:lang="fr">Dépôt et publications propres à Cassette, données AppStream, crédits et licences complétés, liens dans la fenêtre À propos.</p>
       </description>
     </release>
     <release version="0.1.0" date="2026-09-30">

@@ -2,22 +2,22 @@
 
 Cassette est un client Apple Music pour elementary OS. Il affiche `music.apple.com` dans une fenêtre qui suit le style d'elementary : barre d'en-tête framboise, police Inter, palette claire et sombre du système. Cassette fait partie de l'ensemble Boomerang, qui la propose dans son onglet « Services Apple ».
 
-Cassette part de [Sidra](https://github.com/wimpysworld/sidra) 1.1.2, de Martin Wimpress. Le code propre à macOS et Windows, Discord, Last.fm, la navigation à la manette, les thèmes de Sidra, Nix et la mise à jour par GitHub ont été retirés. Cassette ne suit plus Sidra.
+Cassette est dérivée de [Sidra](https://github.com/wimpysworld/sidra) 1.1.2, de Martin Wimpress. Le code propre à macOS et à Windows, l'intégration Discord, Last.fm, la navigation à la manette, les thèmes de Sidra, Nix et la mise à jour par GitHub ont été retirés. Cassette ne reprend plus les évolutions de Sidra.
 
 ## Ce que fait Cassette
 
 - Lecture d'Apple Music et d'Apple Music Classical, avec le Widevine de CastLabs Electron pour les titres protégés.
 - Barre d'en-tête elementary avec retour, avance, lecture en cours et réglages. La barre de lecture flottante d'Apple est masquée.
-- Panneau latéral de Cassette, ouvert depuis la barre d'en-tête : paroles synchronisées qui suivent le morceau, file d'attente (un clic lance le morceau choisi) et recherche dans Apple Music (un morceau se lance, un album, un artiste ou une playlist s'ouvre dans la fenêtre).
-- Mini-lecteur : le bouton à côté des réglages réduit la fenêtre à sa barre d'en-tête (pochette, morceau, position, commandes de lecture). Le même bouton rend la fenêtre complète.
+- Panneau latéral de Cassette, ouvert depuis la barre d'en-tête : paroles synchronisées qui suivent le morceau, file d'attente (un clic lance le morceau choisi) et recherche dans Apple Music (un clic sur un morceau le lance ; un clic sur un album, un artiste ou une playlist l'ouvre dans la fenêtre).
+- Mini-lecteur : le bouton à côté des réglages réduit la fenêtre à sa barre d'en-tête (pochette, morceau, position, commandes de lecture). Le même bouton rétablit la fenêtre complète.
 - Commandes multimédia du système par MPRIS (`org.mpris.MediaPlayer2.cassette`) : touches du clavier, indicateur son du panneau, raccourcis du lanceur (lecture/pause, suivant, précédent, arrêt).
-- Une notification par morceau, avec la pochette et des boutons lecture/pause, précédent et suivant. Le son des notifications est coupé au premier lancement ; le réglage se trouve dans Paramètres système > Notifications.
-- Liens `itms://` ouverts dans Cassette.
-- Volume réglable à la molette, zoom, page de démarrage au choix, fermeture dans la zone de notification.
+- Une notification par morceau, avec la pochette et des boutons lecture/pause, précédent et suivant. Cassette coupe le son de ses notifications au premier lancement ; ce réglage se trouve dans Paramètres système > Notifications.
+- Ouverture des liens `itms://` dans Cassette.
+- Réglage du volume à la molette, zoom, choix de la page de démarrage, fermeture dans la zone de notification.
 
 ## Installer
 
-Cassette est livrée en paquet `.deb`. Boomerang peut l'installer depuis son onglet « Services Apple ». Pour construire le paquet soi-même :
+Cassette est livrée en paquet `.deb`. Boomerang peut l'installer depuis son onglet « Services Apple ». Pour construire et installer le paquet depuis les sources :
 
 ```bash
 npm install
@@ -26,7 +26,7 @@ npx electron-builder --linux deb --publish never
 sudo apt install ./release/cassette_*_amd64.deb
 ```
 
-Les réglages et la session Apple Music sont rangés dans `~/.config/Cassette/`, les pochettes en cache dans `~/.cache/cassette/`.
+Cassette enregistre les réglages et la session Apple Music dans `~/.config/Cassette/`, et le cache des pochettes dans `~/.cache/cassette/`.
 
 ## Développer
 
@@ -42,20 +42,20 @@ just lint           # vérification TypeScript de l'appli et des tests
 ## Notes techniques
 
 - Identifiant : `io.github.melvincouwez.Cassette` (`src/identity.ts`), repris par le fichier `.desktop`, l'identifiant d'application Wayland, les notifications et MPRIS. La partition de session reste `persist:sidra` : la renommer déconnecterait tous les utilisateurs d'Apple Music.
-- Fenêtre : le cadre GTK dessiné par Chromium est gardé (coins arrondis, ombre, bords de redimensionnement) et sa barre de titre est masquée par Window Controls Overlay (`src/windowChrome.ts`). La barre d'en-tête est une vue séparée (`src/headerbar.ts`, `assets/headerbar.*`) avec son propre preload isolé.
+- Fenêtre : le cadre GTK dessiné par Chromium est conservé (coins arrondis, ombre, bords de redimensionnement) et sa barre de titre est masquée par Window Controls Overlay (`src/windowChrome.ts`). La barre d'en-tête est une vue séparée (`src/headerbar.ts`, `assets/headerbar.*`) avec son propre preload isolé.
 - Panneau latéral : une seconde vue (`src/sidePanel.ts`, `assets/panel.*`) interroge MusicKit dans la page d'Apple par des scripts fixes. Le seul texte extérieur transmis est le terme recherché, passé par `JSON.stringify()`. Les adresses des résultats sont vérifiées avant d'être ouvertes.
-- Thème : une seule feuille de style (`src/theme.ts`), palette elementary et accent framboise de Cassette quel que soit l'accent du système.
+- Thème : une seule feuille de style (`src/theme.ts`) applique la palette elementary et l'accent framboise de Cassette, quel que soit l'accent choisi dans le système.
 - Notifications : Electron ignore `silent` sous Linux, donc `src/notify.ts` coupe une fois par profil la clé `sounds` des notifications d'elementary.
 - Paquet : `npx electron-builder --linux deb --publish never` produit `release/cassette_<version>_amd64.deb`, qui remplace l'ancien paquet `aria`.
 
 ## Crédits
 
-- **Sidra**, de Martin Wimpress ([wimpysworld/sidra](https://github.com/wimpysworld/sidra)), licence Blue Oak Model License 1.0.0. Cassette est un fork de la version 1.1.2, avec le travail de Martin Wimpress et de tous les contributeurs de Sidra (voir [leur historique](https://github.com/wimpysworld/sidra/graphs/contributors)) : l'intégration MPRIS, les notifications, le pont avec MusicKit et la plus grande partie du code viennent de Sidra.
+- **Sidra**, de Martin Wimpress ([wimpysworld/sidra](https://github.com/wimpysworld/sidra)), licence Blue Oak Model License 1.0.0. Cassette est un fork de la version 1.1.2 et reprend le travail de Martin Wimpress et de tous les contributeurs de Sidra (voir [leur historique](https://github.com/wimpysworld/sidra/graphs/contributors)) : l'intégration MPRIS, les notifications, le pont avec MusicKit et la plus grande partie du code viennent de Sidra.
 - **CastLabs Electron** ([castlabs/electron-releases](https://github.com/castlabs/electron-releases)), licence MIT, qui intègre Widevine à Electron. Le module Widevine lui-même appartient à Google : il n'est pas dans le paquet, CastLabs Electron le télécharge depuis les serveurs de Google au premier lancement.
 - **Electron** ([electron/electron](https://github.com/electron/electron), MIT, OpenJS Foundation) et **Chromium** (BSD-3-Clause et autres licences, liste complète dans `/opt/Cassette/LICENSES.chromium.html` une fois le paquet installé), sur lesquels CastLabs Electron est construit.
 - **Apple Music** et **MusicKit JS** d'Apple, chargés depuis `music.apple.com`. Apple, Apple Music, Apple Music Classical, iTunes et le logo Apple sont des marques d'Apple Inc., déposées aux États-Unis et dans d'autres pays. Cassette n'est ni affiliée à Apple ni approuvée par Apple.
 - **elementary OS** ([elementary.io](https://elementary.io)) : les couleurs de la palette reprennent celles de sa feuille de style ([elementary/stylesheet](https://github.com/elementary/stylesheet), GPL-3.0, valeurs de couleur seulement) et l'interface suit ses conventions de barre d'en-tête.
-- **Inter**, de Rasmus Andersson ([rsms/inter](https://github.com/rsms/inter), SIL Open Font License), police d'interface d'elementary. Cassette l'utilise si elle est installée et ne l'embarque pas.
+- **Inter**, de Rasmus Andersson ([rsms/inter](https://github.com/rsms/inter), SIL Open Font License), police d'interface d'elementary. Cassette l'utilise si elle est installée sur le système, mais ne l'inclut pas.
 - **Font Awesome Free** ([fontawesome.com](https://fontawesome.com/license/free), icônes sous CC BY 4.0) pour les icônes du menu de la zone de notification, héritées de Sidra.
 - Bibliothèques : [@holusion/dbus-next](https://github.com/Holusion/node-dbus-next) (MIT) pour D-Bus, [electron-conf](https://github.com/alex8088/electron-conf) (MIT) pour les réglages, [electron-log](https://github.com/megahertz/electron-log) (MIT) pour le journal, [electron-builder](https://github.com/electron-userland/electron-builder) (MIT) pour le paquet, [TypeScript](https://github.com/microsoft/TypeScript) (Apache-2.0) et [Vitest](https://github.com/vitest-dev/vitest) (MIT). Leurs dépendances livrées dans le paquet (MIT, Apache-2.0, BSD-3-Clause, BlueOak-1.0.0) sont énumérées dans [`packaging/copyright`](packaging/copyright).
 
